@@ -1,0 +1,15 @@
+# binary files
+*.elf
+*.hex
+*.bin
+
+# macbook garbage
+.DS_Store
+
+# Makefile build directory
+build/
+
+# ozone debug configurations
+*.jdebug
+*.jdebug.user
+

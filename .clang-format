@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: MIT
+# Based on Linux Kernel Style (official), with IndentCaseLabels: true
+BasedOnStyle: LLVM
+
+# --- Indentation & Tabs ---
+UseTab: Always
+IndentWidth: 8
+TabWidth: 8
+
+# --- Brace Wrapping Logic ---
+BreakBeforeBraces: Linux
+
+# --- Spacing Rules ---
+SpaceBeforeParens: ControlStatements
+PointerAlignment: Right
+
+# --- Line Breaking Limits ---
+ColumnLimit: 100
+
+# --- Function Declaration / Call Logic (Aligned with Linux Kernel) ---
+# Linux style allows packing multiple arguments on one line
+BinPackArguments: true
+BinPackParameters: true
+
+# If wrapping occurs, align subsequent lines with the opening bracket
+AlignAfterOpenBracket: Align
+
+# Return type must stay on the same line as the function name
+AlwaysBreakAfterReturnType: None
+
+# --- Penalties (Official Linux Weights) ---
+# Penalty for breaking before the first call parameter (Official: 30)
+PenaltyBreakBeforeFirstCallParameter: 30
+# Strong penalty for putting return type on its own line
+PenaltyReturnTypeOnItsOwnLine: 60
+
+# --- Formatting Details ---
+AllowShortBlocksOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+
+# --- Other ---
+IndentCaseLabels: false
+

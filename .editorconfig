@@ -1,0 +1,15 @@
+# the current directory is the root one
+root = true
+
+# [*] means the following works for all files
+[*]
+charset = utf-8                 # use utf-8 code ( avoid the usage of chinese )
+end_of_line = lf                # linux style to change line (\n) instead of windows (\r\n)
+insert_final_newline = true
+trim_trailing_whitespace = true # delete the trailing spaces on save
+
+# [*.c{ch}] means the following works for .c and .h files
+[*.{c,h}]
+indent_style = tab              # real tab (\t) instead of spaces
+indent_size = 8                 # 4 is also acceptable, but some heretic saied 2???
+
