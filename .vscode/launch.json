@@ -1,0 +1,25 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Cortex Debug (DAPLink)",
+            "type": "cortex-debug",
+            "request": "launch",
+            "servertype": "openocd",
+            "executable": "${workspaceFolder}/build/Debug/h723-template.elf",
+            "configFiles": [
+                "${workspaceFolder}/cmsis-dap-h7.cfg"
+            ],
+            "gdbPath": "arm-none-eabi-gdb",
+
+            "runToEntryPoint": "main",
+
+            "liveWatch": {
+                "enabled": true,
+                "samplesPerSecond": 5
+            },
+
+            "preLaunchTask": "CMake Build"
+        }
+    ]
+}
