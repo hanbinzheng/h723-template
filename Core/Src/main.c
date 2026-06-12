@@ -25,7 +25,6 @@
 /* USER CODE BEGIN Includes */
 #include "bsp_spi.h"
 #include "ws2812.h"
-#include <sys/_types.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
