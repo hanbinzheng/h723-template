@@ -3,7 +3,6 @@
 
 #include "gpio.h"
 #include "spi.h"
-#include "stm32h7xx_hal_def.h"
 #include <stdint.h>
 
 #define SPI_INST_MAX_NUM 2 /* only 2 in use */

@@ -1,8 +1,5 @@
 #include "bsp_spi.h"
-#include "stm32h7xx_hal_def.h"
-#include "stm32h7xx_hal_spi.h"
 #include <assert.h>
-#include <sys/_types.h>
 
 #define SPI_TIMEOUT_MS 100
 
