@@ -14,3 +14,8 @@ Diagnostics:
     "pp_file_not_used",
     "unused-includes"
   ]
+  UnusedIncludes: None
+  MissingIncludes: None
+
+Completion:
+  HeaderInsertion: Never
