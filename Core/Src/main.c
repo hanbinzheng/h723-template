@@ -119,6 +119,8 @@ int main(void)
 	/* USER CODE BEGIN WHILE */
 	while (1) {
 		/* USER CODE END WHILE */
+
+		/* USER CODE BEGIN 3 */
 		int i = 1;
 		i = i * fuck;
 		ws2812_ctrl(r, g, b);
@@ -130,7 +132,6 @@ int main(void)
 		g++;
 		b++;
 		HAL_Delay(100);
-		/* USER CODE BEGIN 3 */
 	}
 	/* USER CODE END 3 */
 }
