@@ -64,7 +64,7 @@ void dwt_systime_update(void);
 /**
  * @brief get current time in s/ms/us (since initialization)
  *
- * @return float timeline / uint16_t timeline
+ * @return float timeline / uint64_t timeline
  */
 float dwt_get_timeline_s(void);
 float dwt_get_timeline_ms(void);
@@ -85,8 +85,8 @@ void dwt_delay_ms(uint32_t delay_ms);
  * @brief DWT delay function in us
  *
  * this function must be implemented inline to reduce error
- * @attention the delay_us should be within 1000 to guarantee precision
- * @note error: 10~20%, and for high precision case, please use tim_delay
+ * @attention the delay_us should be within 1000 to reduce error
+ * @note error: 10~20%, please use tim_delay for high precision case
  *
  * @param delay delay time in us
  */
@@ -97,7 +97,7 @@ __attribute__((always_inline)) static inline void dwt_delay_us(uint32_t delay_us
 	uint32_t delay_cnt = delay_us * cpu_freq_mhz; /* cpu_freq_mhz = ticks per us */
 
 	while ((uint32_t)(DWT->CYCCNT - start_cnt) < delay_cnt)
-		; /* unsigned int can automatically handle a overflow */
+		; /* unsigned can automatically handle one overflow */
 }
 
 #endif /* BSP_DWT_H_ */
