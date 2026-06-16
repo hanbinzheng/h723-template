@@ -75,7 +75,7 @@ void dwt_init(uint32_t cpu_freq_mhz)
 float dwt_get_delta_t(uint32_t *cnt_last)
 {
 	volatile uint32_t cnt_now = DWT->CYCCNT;
-	float dt = (cnt_now - *cnt_last) / (float)ticks_per_ms;
+	float dt = (cnt_now - *cnt_last) / (float)ticks_per_s;
 	*cnt_last = cnt_now;
 
 	dwt_cnt_update();
