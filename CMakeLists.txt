@@ -47,7 +47,9 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
     bsp/dwt/bsp_dwt.c
     bsp/spi/bsp_spi.c
+    bsp/tim/bsp_tim.c
 
+    device/buzzer/buzzer.c
     device/ws2812/ws2812.c
 )
 
@@ -56,7 +58,9 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
     bsp/spi
     bsp/dwt
+    bsp/tim
 
+    device/buzzer
     device/ws2812
 )
 
