@@ -165,24 +165,21 @@ void buzzer_play_song(enum song song)
 {
 	const struct note *notes = NULL;
 	uint32_t len_song = 0;
-	uint32_t pause = 0; /* ms */
 	switch (song) {
 	case ODE_TO_JOY:
 		notes = ode_to_joy;
 		len_song = sizeof(ode_to_joy) / sizeof(struct note);
-		pause = PHRASE_PAUSE;
 		break;
 	case HA_JI_MI:
 		notes = ha_ji_mi;
 		len_song = sizeof(ha_ji_mi) / sizeof(struct note);
-		pause = PHRASE_PAUSE;
 		break;
 	default:
 		break;
 	}
 
 	for (uint32_t i = 0; i < len_song; ++i) {
-		buzzer_ctrl(notes[i].freq, notes[i].duration, 0.5);
-		buzzer_ctrl(notes[i].freq, 200, pause); /* to distinguish notes */
+		buzzer_ctrl(notes[i].freq, notes[i].duration, notes[i].volume);
+		buzzer_ctrl(notes[i].freq, PHRASE_PAUSE, 0); /* to distinguish notes */
 	}
 }
