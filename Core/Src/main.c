@@ -20,11 +20,15 @@
 #include "main.h"
 #include "gpio.h"
 #include "spi.h"
+#include "tim.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "bsp_dwt.h"
 #include "bsp_spi.h"
+#include "tim.h"
+
+#include "buzzer.h"
 #include "ws2812.h"
 /* USER CODE END Includes */
 
@@ -36,6 +40,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define MCU_MAIN_FREQ 640 /* MHz */
+#define APB1_FREQ 160	  /* MHz */
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -48,9 +53,11 @@
 /* USER CODE BEGIN PV */
 uint8_t r, g, b;
 float time = 0.0f;
+uint32_t fuck = 114514;
 uint32_t volatile diff = 0;
 uint64_t cnt = 0;
 struct spi_inst *spi6 = NULL;
+struct tim_inst *tim12 = NULL;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -70,15 +77,25 @@ void bsp_init()
 
 	/* spi config */
 	struct spi_config spi6_config = {
-	    .handle = &hspi6,
+	    .hspi = &hspi6,
 	    .cs_port = NULL,
 	    .cs_pin = 0,
 	};
 	spi6 = spi_register(&spi6_config);
+
+	/* tim config */
+	struct tim_config tim12_config = {
+	    .htim = &htim12,
+	    .channel = TIM_CHANNEL_2,
+	    .clk_freq = APB1_FREQ * 1000000,
+	    .mode = TIM_PWM_MODE,
+	};
+	tim12 = tim_register(&tim12_config);
 }
 
 void device_init()
 {
+	buzzer_register(tim12);
 	ws2812_register(spi6);
 }
 /* USER CODE END 0 */
@@ -116,6 +133,7 @@ int main(void)
 	/* Initialize all configured peripherals */
 	MX_GPIO_Init();
 	MX_SPI6_Init();
+	MX_TIM12_Init();
 	/* USER CODE BEGIN 2 */
 	bsp_init();
 	device_init();
@@ -125,27 +143,20 @@ int main(void)
 	/* USER CODE BEGIN WHILE */
 	while (1) {
 		/* USER CODE END WHILE */
-		uint32_t volatile before = DWT->CYCCNT;
-		dwt_delay_us(1, MCU_MAIN_FREQ);
-		uint32_t volatile after = DWT->CYCCNT;
-		diff = after - before;
 
 		/* USER CODE BEGIN 3 */
-		/*
-		time = dwt_get_timeline_s();
-
-		int i = 1;
-		i = i * fuck;
-		ws2812_ctrl(r, g, b);
-		r++;
-		g += 5;
-		b += 10;
-		dwt_delay_ms(1);
-		r++;
-		g++;
-		b++;
-		dwt_delay_ms(100);
-		*/
+		// int i = 1;
+		// i = i * fuck;
+		// ws2812_ctrl(r, g, b);
+		// r++;
+		// g += 5;
+		// b += 10;
+		// dwt_delay_ms(1);
+		// r++;
+		// g++;
+		// b++;
+		// buzzer_ctrl(4000, 100, 0.5);
+		buzzer_play_song(HA_JI_MI);
 	}
 	/* USER CODE END 3 */
 }
