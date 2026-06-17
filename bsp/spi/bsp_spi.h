@@ -20,9 +20,9 @@ enum spi_work_mode {
 */
 
 struct spi_config {
-	SPI_HandleTypeDef *handle; /* hspi1, hspi2... */
-	GPIO_TypeDef *cs_port;	   /* GPIOA, GPIOB... */
-	uint16_t cs_pin;	   /* GPIO_PIN_1, GPIO_PIN_2... */
+	SPI_HandleTypeDef *hspi;
+	GPIO_TypeDef *cs_port; /* GPIOA, GPIOB... */
+	uint16_t cs_pin;       /* GPIO_PIN_1, GPIO_PIN_2... */
 
 	/* enum spi_work_mode work_mode; */
 };
