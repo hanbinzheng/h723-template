@@ -55,24 +55,63 @@ ENTRY(Reset_Handler)
 /* Specify the memory areas */
 MEMORY
 {
-DTCMRAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 128K
-RAM_D1 (xrw)      : ORIGIN = 0x24000000, LENGTH = 320K
-RAM_D2 (xrw)      : ORIGIN = 0x30000000, LENGTH = 32K
-RAM_D3 (xrw)      : ORIGIN = 0x38000000, LENGTH = 16K
-ITCMRAM (xrw)      : ORIGIN = 0x00000000, LENGTH = 64K
-FLASH (rx)      : ORIGIN = 0x8000000, LENGTH = 1024K
+DTCMRAM (xrw)	: ORIGIN = 0x20000000, LENGTH = 128K	/* DTCMRAM: 0x2000_0000 ~ 0x2001_FFFF */
+RAM_D1 (xrw)	: ORIGIN = 0x24000000, LENGTH = 320K  	/* RAM_D1:  0x2400_0000 ~ 0x2404_FFFF */
+RAM_D2 (xrw)	: ORIGIN = 0x30000000, LENGTH = 32K   	/* RAM_D2:  0x3000_0000 ~ 0x3000_7FFF */
+RAM_D3 (xrw)	: ORIGIN = 0x38000000, LENGTH = 16K   	/* RAM_D3:  0x3800_0000 ~ 0x3800_3FFF */
+ITCMRAM (xrw)	: ORIGIN = 0x00000000, LENGTH = 64K  	/* ITCMRAM: 0x0000_0000 ~ 0x0000_FFFF */
+FLASH (rx)	: ORIGIN = 0x8000000, LENGTH = 1024K    /* FLASH:   0x0800_0000 ~ 0x080F_FFFF */
 }
 
 /* Highest address of the user mode stack */
 _estack = ORIGIN(DTCMRAM) + LENGTH(DTCMRAM);    /* end of RAM */
+
 /* Generate a link error if heap and stack don't fit into RAM */
 _Min_Heap_Size = 0x200;      /* required amount of heap  */
 _Min_Stack_Size = 0x400; /* required amount of stack */
+
+/*
+ * SECTIONS{}: Core link script block defining placement of target file
+ * sections into memory regions (FLASH/DTCMRAM in MEMORY), address layout,
+ * exporting global symbols, alignment, and separate load/run addresses.
+ *
+ * '.' (location counter): Current memory offset pointer, readable and
+ * assignable.
+ *
+ * >MEM: Run address (VMA), section executes from this memory region.
+ *
+ * AT>MEM: Load address (LMA), stored in MEM during programming; runtime
+ * copy to > specified RAM.
+ *
+ * ALIGN(N): Force current address to N-byte boundary, padding with zeros.
+ *
+ * *(.xxx): Match all .xxx sections from all .o object files; *.xxx* for
+ * fuzzy matching.
+ *
+ * KEEP(): Force retention of section, preventing linker garbage collection
+ * This is required for interrupt vectors and init arrays.
+ *
+ * PROVIDE(sym=value): Define global symbol accessible by C code via extern;
+ * PROVIDE_HIDDEN is visible only inside the link script.
+ *
+ * LOADADDR(section): Get load address (LMA) of a section (Flash address).
+ *
+ * ADDR(section): Get run address (VMA) of a section (RAM address).
+ *
+ * NOLOAD: Allocated at compile time, not programmed to Flash; zeroed at
+ * power-on startup (bss/tbss/heap/stack).
+ *
+ * /DISCARD/: Discard specified sections, not emitted to final firmware.
+ *
+ * SORT(.init_array.*): Sort initialization function arrays numerically in
+ * ascending order.
+ */
 
 /* Define output sections */
 SECTIONS
 {
   /* The startup code goes first into FLASH */
+  /* interrupt vector table is stored at the beginning of FLASH, at 0x0800_0000 */
   .isr_vector :
   {
     . = ALIGN(4);
@@ -80,15 +119,16 @@ SECTIONS
     . = ALIGN(4);
   } >FLASH
 
+
   /* The program code and other data goes into FLASH */
   .text :
   {
     . = ALIGN(4);
-    *(.text)           /* .text sections (code) */
-    *(.text*)          /* .text* sections (code) */
-    *(.glue_7)         /* glue arm to thumb code */
-    *(.glue_7t)        /* glue thumb to arm code */
-    *(.eh_frame)
+    *(.text)		/* .text sections (code) */
+    *(.text*)		/* .text* sections (code) */
+    *(.glue_7)		/* glue arm to thumb code */
+    *(.glue_7t)		/* glue thumb to arm code */
+    *(.eh_frame)	/* for cpp */
 
     KEEP (*(.init))
     KEEP (*(.fini))
@@ -96,6 +136,7 @@ SECTIONS
     . = ALIGN(4);
     _etext = .;        /* define a global symbols at end of code */
   } >FLASH
+
 
   /* Constant data goes into FLASH */
   .rodata :
@@ -106,6 +147,8 @@ SECTIONS
     . = ALIGN(4);
   } >FLASH
 
+
+  /* .ARM.extab/.ARM: for cpp only, abnormal ram? */
   .ARM.extab (READONLY) : /* The "READONLY" keyword is only supported in GCC11 and later, remove it if using GCC10 or earlier. */
   {
     . = ALIGN(4);
@@ -122,6 +165,8 @@ SECTIONS
     . = ALIGN(4);
   } >FLASH
 
+
+  /* .preinit_array/.init_array/.fini_array: global initialization of arries */
   .preinit_array (READONLY) : /* The "READONLY" keyword is only supported in GCC11 and later, remove it if using GCC10 or earlier. */
   {
     . = ALIGN(4);
@@ -151,8 +196,9 @@ SECTIONS
     . = ALIGN(4);
   } >FLASH
 
+
   /* used by the startup to initialize data */
-  _sidata = LOADADDR(.data);
+  _sidata = LOADADDR(.data);	/* get address of .data section */
 
   /* Initialized data sections goes into RAM, load LMA copy after code */
   .data :
@@ -165,9 +211,25 @@ SECTIONS
     *(.RamFunc*)       /* .RamFunc* sections */
 
     . = ALIGN(4);
-  } >DTCMRAM AT> FLASH
+  } >DTCMRAM AT> FLASH	/* run time: DTCMRAM, storage: FLASH */
 
- /* Initialized TLS data section */
+
+  /* used by the startup to initialize code */
+  _siitcm_text = LOADADDR(.itcm_text);
+
+  /* startup code will move .itcm_text section into ITCMRAM */
+  .itcm_text :
+  {
+    . = ALIGN(4);
+    _sitcm_text = .;        /* start of ITCMRAM run time address */
+    *(.itcm_text)           /* functions assigned with .itcm_text */
+    *(.itcm_text*)          /* sections assigned with .itcm_text */
+    . = ALIGN(4);
+    _eitcm_text = .;        /* end of ITCMRAM run time address */
+  } >ITCMRAM AT> FLASH	/* run time: ITCM, storage: FLASH */
+
+
+ /* Initialized TLS(Thread Local Storage) data section */
   .tdata : ALIGN(4)
   {
     *(.tdata .tdata.* .gnu.linkonce.td.*)
@@ -213,6 +275,7 @@ SECTIONS
   PROVIDE( __arm32_tls_tcb_offset = MAX(8, __tls_align) );
   PROVIDE( __arm64_tls_tcb_offset = MAX(16, __tls_align) );
 
+
   .bss (NOLOAD) : ALIGN(4)
   {
     *(.bss)
@@ -228,6 +291,7 @@ SECTIONS
 
   PROVIDE( __bss_start = __tbss_start );
   PROVIDE( __bss_size = __bss_end - __bss_start );
+
 
   /* User_heap_stack section, used to check that there is enough RAM left */
   ._user_heap_stack (NOLOAD) :

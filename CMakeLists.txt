@@ -69,6 +69,11 @@ target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined symbols
 )
 
+# Force include compiler_attributes.h in all C source files
+target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE
+    -include ${CMAKE_SOURCE_DIR}/compiler_attributes.h
+)
+
 # Remove wrong libob.a library dependency when using cpp files
 list(REMOVE_ITEM CMAKE_C_IMPLICIT_LINK_LIBRARIES ob)
 

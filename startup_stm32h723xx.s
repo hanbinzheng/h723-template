@@ -39,6 +39,14 @@ defined in linker script */
 .word  _sdata
 /* end address for the .data section. defined in linker script */
 .word  _edata
+
+/* start address of corresponding sections in FLASH (LMA) */
+.word  _siitcm_text
+/* start of ITCMRAM run time address (VMA) */
+.word  _sitcm_text
+/* end of ITCMRAM run time address */
+.word  _eitcm_text
+
 /* start address for the .bss section. defined in linker script */
 .word  _sbss
 /* end address for the .bss section. defined in linker script */
@@ -81,6 +89,24 @@ LoopCopyDataInit:
   adds r4, r0, r3
   cmp r4, r1
   bcc CopyDataInit
+
+/* Copy the code segments from FLASH to ITCMRAM */
+  ldr r0, =_sitcm_text
+  ldr r1, =_eitcm_text
+  ldr r2, =_siitcm_text
+  movs r3, #0
+  b LoopCopyItcmInit
+
+CopyItcmInit:
+  ldr r4, [r2, r3]
+  str r4, [r0, r3]
+  adds r3, r3, #4
+
+LoopCopyItcmInit:
+  adds r4, r0, r3
+  cmp r4, r1
+  bcc CopyItcmInit
+
 /* Zero fill the bss segment. */
   ldr r2, =_sbss
   ldr r4, =_ebss
