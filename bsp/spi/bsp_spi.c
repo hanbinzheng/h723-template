@@ -50,6 +50,7 @@ void spi_deselect(struct spi_inst *inst)
 }
 */
 
+__ITCM_FUNC
 HAL_StatusTypeDef spi_transmit(struct spi_inst *inst, uint8_t *buff, uint16_t len)
 {
 	assert(inst != NULL && buff != NULL && inst->hspi != NULL);
@@ -70,6 +71,7 @@ HAL_StatusTypeDef spi_transmit(struct spi_inst *inst, uint8_t *buff, uint16_t le
 	/* HAL_SPI_TransmitReceive_DMA(inst->hspi, tx_buff, rx_buff, len); */
 }
 
+__ITCM_FUNC
 HAL_StatusTypeDef spi_receive(struct spi_inst *inst, uint8_t *buff, uint16_t len)
 {
 	assert(inst != NULL && buff != NULL && inst->hspi != NULL);
@@ -90,6 +92,7 @@ HAL_StatusTypeDef spi_receive(struct spi_inst *inst, uint8_t *buff, uint16_t len
 	/* HAL_SPI_TransmitReceive_DMA(inst->hspi, tx_buff, rx_buff, len); */
 }
 
+__ITCM_FUNC
 HAL_StatusTypeDef spi_transceive(struct spi_inst *inst, uint8_t *tx_buff, uint8_t *rx_buff,
 				 uint16_t len)
 {
