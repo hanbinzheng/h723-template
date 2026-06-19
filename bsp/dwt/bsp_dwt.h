@@ -90,8 +90,8 @@ void dwt_delay_ms(uint32_t delay_ms);
  *
  * @param delay delay time in us
  */
-__attribute__((always_inline)) static inline void dwt_delay_us(uint32_t delay_us,
-							       uint32_t cpu_freq_mhz)
+__ALWAYS_INLINE
+static void dwt_delay_us(uint32_t delay_us, uint32_t cpu_freq_mhz)
 {
 	uint32_t start_cnt = DWT->CYCCNT;
 	uint32_t delay_cnt = delay_us * cpu_freq_mhz; /* cpu_freq_mhz = ticks per us */
