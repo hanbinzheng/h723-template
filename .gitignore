@@ -5,8 +5,9 @@
 
 # macbook garbage
 .DS_Store
+.vorg.db
 
-# Makefile build directory
+# build directory
 build/
 
 # ozone debug configurations
