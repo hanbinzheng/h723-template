@@ -46,16 +46,15 @@ struct usart_config {
 struct usart_inst *usart_register(const struct usart_config *config);
 
 /**
- * @brief receive data in blocking mode
+ * @brief receive data in polling mode
  *
  * blocking receive in polling mode
  *
  * @note this function is not for DMA
- * 	calling this function will cover the original setting
  *
  * @param inst pointer to the USART instance
- * @param buff receive buffer
- * @param len number of bytes to receive
+ * @param buff receive buffer, only for polling mode
+ * @param len number of bytes to receive, only for polling mode
  * @return whether successful
  */
 HAL_StatusTypeDef usart_receive(struct usart_inst *inst, uint8_t *buff, uint16_t len);

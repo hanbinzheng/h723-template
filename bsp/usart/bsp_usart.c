@@ -15,7 +15,7 @@ static uint8_t idx = 0;
 
 struct usart_inst *usart_register(const struct usart_config *config)
 {
-	assert(config != NULL && config->huart != NULL);
+	assert(config != NULL && config->huart != NULL && idx < USART_INST_MAX_NUM);
 
 	/* check repetition */
 	for (uint8_t i = 0; i < idx; i++) {
@@ -57,12 +57,12 @@ HAL_StatusTypeDef usart_receive(struct usart_inst *inst, uint8_t *buff, uint16_t
 	case USART_RECEIVE_NONE:
 		break;
 	case USART_RECEIVE_POLLING:
-		HAL_UART_Receive(inst->huart, buff, len, USART_TIMEOUT_MS);
+		ret = HAL_UART_Receive(inst->huart, buff, len, USART_TIMEOUT_MS);
 		break;
 	case USART_RECEIVE_IT:
 		inst->rx_buff = buff;
 		inst->rx_len = len;
-		HAL_UART_Receive_IT(inst->huart, buff, len);
+		ret = HAL_UART_Receive_IT(inst->huart, inst->rx_buff, inst->rx_len);
 		break;
 	default:
 		break;
