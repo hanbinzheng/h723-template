@@ -5,6 +5,8 @@
 #include <stdint.h>
 
 #define USART_INST_MAX_NUM 5
+#define USART_TIMEOUT_MS HAL_MAX_DELAY
+#define USART_BUFF_MAX_SIZE 128
 
 struct usart_inst;
 typedef void (*usart_callback)(uint8_t *rx_buff, uint16_t len);
@@ -12,22 +14,24 @@ typedef void (*usart_callback)(uint8_t *rx_buff, uint16_t len);
 enum usart_receive_mode {
 	USART_RECEIVE_NONE = 0,
 	USART_RECEIVE_POLLING,
-	// USART_RECEIVE_IT,
-	// USART_RECEIVE_DMA, /* double DMA + IDLE interrupt */
+	USART_RECEIVE_IT, /* FIFO */
+			  // USART_RECEIVE_DMA, /* double DMA + IDLE interrupt */
 };
 
 enum usart_transmit_mode {
 	USART_TRANSMIT_NONE = 0,
 	USART_TRANSMIT_POLLING,
-	// USART_TRANSMIT_IT,
-	// USART_TRANSMIT_DMA,
+	USART_TRANSMIT_IT, /* FIFO */
+			   // USART_TRANSMIT_DMA,
 };
 
 struct usart_config {
 	UART_HandleTypeDef *huart;
 	enum usart_receive_mode rx_mode;
 	enum usart_transmit_mode tx_mode;
-	usart_callback callback; /* callback function for interrupt */
+	uint16_t rx_len;
+	uint8_t *rx_buff;	 /* not for polling mode */
+	usart_callback callback; /* callback function for rx interrupt */
 };
 
 /**
@@ -44,7 +48,10 @@ struct usart_inst *usart_register(const struct usart_config *config);
 /**
  * @brief receive data in blocking mode
  *
- * blocking timeout in polling mode: 100ms
+ * blocking receive in polling mode
+ *
+ * @note this function is not for DMA
+ * 	calling this function will cover the original setting
  *
  * @param inst pointer to the USART instance
  * @param buff receive buffer
