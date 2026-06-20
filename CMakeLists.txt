@@ -48,6 +48,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     bsp/dwt/bsp_dwt.c
     bsp/spi/bsp_spi.c
     bsp/tim/bsp_tim.c
+    bsp/usart/bsp_usart.c
 
     device/buzzer/buzzer.c
     device/ws2812/ws2812.c
@@ -59,6 +60,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     bsp/spi
     bsp/dwt
     bsp/tim
+    bsp/usart
 
     device/buzzer
     device/ws2812

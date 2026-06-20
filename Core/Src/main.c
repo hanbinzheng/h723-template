@@ -21,15 +21,17 @@
 #include "gpio.h"
 #include "spi.h"
 #include "tim.h"
+#include "usart.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "bsp_dwt.h"
 #include "bsp_spi.h"
-#include "tim.h"
+#include "bsp_usart.h"
 
 #include "buzzer.h"
 #include "ws2812.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -41,6 +43,7 @@
 /* USER CODE BEGIN PD */
 #define MCU_MAIN_FREQ 550 /* MHz */
 #define APB1_FREQ 275	  /* MHz */
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -55,8 +58,12 @@ uint8_t r, g, b;
 float time = 0.0f;
 uint32_t volatile diff = 0;
 uint64_t cnt = 0;
+uint8_t buff[50];
+
 struct spi_inst *spi6 = NULL;
 struct tim_inst *tim12 = NULL;
+struct usart_inst *usart7 = NULL;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -65,6 +72,7 @@ static void MPU_Config(void);
 /* USER CODE BEGIN PFP */
 void bsp_init(void);
 void device_init(void);
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -90,6 +98,15 @@ void bsp_init()
 	    .mode = TIM_PWM_MODE,
 	};
 	tim12 = tim_register(&tim12_config);
+
+	/* usart config */
+	struct usart_config usart7_config = {
+	    .huart = &huart7,
+	    .rx_mode = USART_RECEIVE_POLLING,
+	    .tx_mode = USART_TRANSMIT_POLLING,
+	    .callback = NULL,
+	};
+	usart7 = usart_register(&usart7_config);
 }
 
 void device_init()
@@ -141,9 +158,11 @@ int main(void)
 	MX_GPIO_Init();
 	MX_SPI6_Init();
 	MX_TIM12_Init();
+	MX_UART7_Init();
 	/* USER CODE BEGIN 2 */
 	bsp_init();
 	device_init();
+
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
@@ -161,12 +180,15 @@ int main(void)
 		// g++;
 		// b++;
 		// dwt_delay_ms(100);
-		buzzer_play_song(ODE_TO_JOY);
+		// buzzer_play_song(ODE_TO_JOY);
 		// uint32_t volatile before = DWT->CYCCNT;
 		// dwt_delay_ms(1);
 		// uint32_t volatile after = DWT->CYCCNT;
 		// diff = after - before;
 		// cnt++;
+		dwt_delay_ms(500);
+		usart_receive(usart7, buff, 11);
+		usart_transmit(usart7, buff, 11);
 	}
 	/* USER CODE END 3 */
 }
