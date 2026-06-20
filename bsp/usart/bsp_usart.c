@@ -60,8 +60,6 @@ HAL_StatusTypeDef usart_receive(struct usart_inst *inst, uint8_t *buff, uint16_t
 		ret = HAL_UART_Receive(inst->huart, buff, len, USART_TIMEOUT_MS);
 		break;
 	case USART_RECEIVE_IT:
-		inst->rx_buff = buff;
-		inst->rx_len = len;
 		ret = HAL_UART_Receive_IT(inst->huart, inst->rx_buff, inst->rx_len);
 		break;
 	default:
