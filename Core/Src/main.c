@@ -63,6 +63,7 @@ uint8_t buff[50];
 struct spi_inst *spi6 = NULL;
 struct tim_inst *tim12 = NULL;
 struct usart_inst *usart7 = NULL;
+struct usart_inst *usart10 = NULL;
 
 /* USER CODE END PV */
 
@@ -77,6 +78,11 @@ void device_init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+void usart10_callback(uint8_t *rx_buff, uint16_t len)
+{
+	usart_receive(usart10, rx_buff, len);
+}
+
 void bsp_init()
 {
 	/* dwt config */
@@ -104,9 +110,21 @@ void bsp_init()
 	    .huart = &huart7,
 	    .rx_mode = USART_RECEIVE_POLLING,
 	    .tx_mode = USART_TRANSMIT_POLLING,
+	    .rx_len = 0,
+	    .rx_buff = NULL,
 	    .callback = NULL,
 	};
 	usart7 = usart_register(&usart7_config);
+
+	struct usart_config usart10_config = {
+	    .huart = &huart10,
+	    .rx_mode = USART_RECEIVE_IT,
+	    .tx_mode = USART_TRANSMIT_IT,
+	    .rx_len = 8,
+	    .rx_buff = buff,
+	    .callback = usart10_callback,
+	};
+	usart10 = usart_register(&usart10_config);
 }
 
 void device_init()
@@ -159,6 +177,7 @@ int main(void)
 	MX_SPI6_Init();
 	MX_TIM12_Init();
 	MX_UART7_Init();
+	MX_USART10_UART_Init();
 	/* USER CODE BEGIN 2 */
 	bsp_init();
 	device_init();
@@ -186,9 +205,6 @@ int main(void)
 		// uint32_t volatile after = DWT->CYCCNT;
 		// diff = after - before;
 		// cnt++;
-		dwt_delay_ms(500);
-		usart_receive(usart7, buff, 11);
-		usart_transmit(usart7, buff, 11);
 	}
 	/* USER CODE END 3 */
 }
