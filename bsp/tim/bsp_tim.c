@@ -46,14 +46,12 @@ struct tim_inst *tim_register(const struct tim_config *config)
 	return inst;
 }
 
-__ITCM_FUNC
 HAL_StatusTypeDef tim_pwm_start(const struct tim_inst *inst)
 {
 	assert(inst != NULL);
 	return HAL_TIM_PWM_Start(inst->htim, inst->channel);
 }
 
-__ITCM_FUNC
 HAL_StatusTypeDef tim_pwm_stop(const struct tim_inst *inst)
 {
 	assert(inst != NULL);
@@ -61,7 +59,6 @@ HAL_StatusTypeDef tim_pwm_stop(const struct tim_inst *inst)
 }
 
 /* check stm32h7xx_hal_tim.h for details */
-__ITCM_FUNC
 HAL_StatusTypeDef tim_set_pwm(struct tim_inst *inst, uint16_t pwm_freq, float pwm_duty)
 {
 	assert(inst != NULL && inst->htim != NULL);
