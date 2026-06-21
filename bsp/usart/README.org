@@ -1,0 +1,28 @@
+* Usage
+
+** About Reception
+
+USART_RECEIVE_POLLING and USART_RECEIVE_IT modes are designed for single, fixed-length reception. One is blocking, the other is non-blocking. Reception can only be performed through a single call to usart_receive.
+
+USART_RECEIVE_IT_IDLE and USART_RECEIVE_IT_IDLE_DMA are designed for variable-length data. They process data through callback parameters, and users need to handle the data promptly within the callback.
+
+** About Transmission:
+
+Currently only USART_TRANSMIT_POLLING and USART_TRANSMIT_IT modes are supported for single transmission. One is blocking, the other is non-blocking.
+
+** Receive Usage Details
+
+*** 1. USART_RECEIVE_POLLING
+
+Pass NULL as the callback. Even if you configure it, it won't be used since reception is performed through usart_receive with the specified buffer and length.
+
+
+*** 2. USART_RECEIVE_IT
+
+Requires manual reception via usart_receive. This is a one-time operation. If continuous reception is needed, use USART_RECEIVE_IT or USART_RECEIVE_IT_IDLE_DMA. Alternatively, you could reset it by calling usart_receive within the callback (hacky approach), but this is strongly discouraged.
+
+The callback can be NULL or non-NULL. If NULL, nothing happens. If non-NULL, the callback is invoked in HAL_UART_RxCpltCallback with the buffer and length passed to usart_receive.
+
+*** 3. USART_RECEIVE_IT_IDLE / USART_RECEIVE_IT_IDLE_DMA
+
+Designed for variable-length reception. The callback is invoked within HAL_UARTEx_RxEventCallback. If NULL is passed, it won't be executed.

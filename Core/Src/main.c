@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "dma.h"
 #include "gpio.h"
 #include "spi.h"
 #include "tim.h"
@@ -25,6 +26,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <string.h>
+
 #include "bsp_dwt.h"
 #include "bsp_spi.h"
 #include "bsp_usart.h"
@@ -78,9 +81,13 @@ void device_init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+int this_len;
+int count;
 void usart10_callback(uint8_t *rx_buff, uint16_t len)
 {
-	usart_receive(usart10, rx_buff, len);
+	count++;
+	this_len = len;
+	memcpy(buff, rx_buff, len);
 }
 
 void bsp_init()
@@ -110,18 +117,14 @@ void bsp_init()
 	    .huart = &huart7,
 	    .rx_mode = USART_RECEIVE_POLLING,
 	    .tx_mode = USART_TRANSMIT_POLLING,
-	    .rx_len = 0,
-	    .rx_buff = NULL,
 	    .callback = NULL,
 	};
 	usart7 = usart_register(&usart7_config);
 
 	struct usart_config usart10_config = {
 	    .huart = &huart10,
-	    .rx_mode = USART_RECEIVE_IT,
+	    .rx_mode = USART_RECEIVE_IT_IDLE_DMA,
 	    .tx_mode = USART_TRANSMIT_IT,
-	    .rx_len = 8,
-	    .rx_buff = buff,
 	    .callback = usart10_callback,
 	};
 	usart10 = usart_register(&usart10_config);
@@ -174,6 +177,7 @@ int main(void)
 
 	/* Initialize all configured peripherals */
 	MX_GPIO_Init();
+	MX_DMA_Init();
 	MX_SPI6_Init();
 	MX_TIM12_Init();
 	MX_UART7_Init();
@@ -205,6 +209,7 @@ int main(void)
 		// uint32_t volatile after = DWT->CYCCNT;
 		// diff = after - before;
 		// cnt++;
+		dwt_delay_ms(500);
 	}
 	/* USER CODE END 3 */
 }
