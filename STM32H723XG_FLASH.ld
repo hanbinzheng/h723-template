@@ -55,12 +55,13 @@ ENTRY(Reset_Handler)
 /* Specify the memory areas */
 MEMORY
 {
-DTCMRAM (xrw)	: ORIGIN = 0x20000000, LENGTH = 128K	/* DTCMRAM: 0x2000_0000 ~ 0x2001_FFFF */
-RAM_D1 (xrw)	: ORIGIN = 0x24000000, LENGTH = 320K  	/* RAM_D1:  0x2400_0000 ~ 0x2404_FFFF */
-RAM_D2 (xrw)	: ORIGIN = 0x30000000, LENGTH = 32K   	/* RAM_D2:  0x3000_0000 ~ 0x3000_7FFF */
-RAM_D3 (xrw)	: ORIGIN = 0x38000000, LENGTH = 16K   	/* RAM_D3:  0x3800_0000 ~ 0x3800_3FFF */
-ITCMRAM (xrw)	: ORIGIN = 0x00000000, LENGTH = 64K  	/* ITCMRAM: 0x0000_0000 ~ 0x0000_FFFF */
-FLASH (rx)	: ORIGIN = 0x8000000, LENGTH = 1024K    /* FLASH:   0x0800_0000 ~ 0x080F_FFFF */
+DTCMRAM (xrw)		: ORIGIN = 0x20000000, LENGTH = 128K	/* DTCMRAM: 0x2000_0000 ~ 0x2001_FFFF */
+RAM_D1 (xrw)		: ORIGIN = 0x24000000, LENGTH = 320K  	/* RAM_D1: 0x2400_0000 ~ 0x2404_FFFF */
+RAM_D2 (xrw)		: ORIGIN = 0x30000000, LENGTH = 28K   	/* RAM_D2: 0x3000_0000 ~ 0x3000_6FFF */
+RAM_D2_NOCACHE (xrw)	: ORIGIN = 0x30007000, LENGTH = 4K   	/* RAM_D2_NOCACHE: 0x3000_7000 ~ 0x3000_7FFF */
+RAM_D3 (xrw)		: ORIGIN = 0x38000000, LENGTH = 16K   	/* RAM_D3: 0x3800_0000 ~ 0x3800_3FFF */
+ITCMRAM (xrw)		: ORIGIN = 0x00000000, LENGTH = 64K  	/* ITCMRAM: 0x0000_0000 ~ 0x0000_FFFF */
+FLASH (rx)		: ORIGIN = 0x8000000, LENGTH = 1024K    /* FLASH: 0x0800_0000 ~ 0x080F_FFFF */
 }
 
 /* Highest address of the user mode stack */
@@ -212,6 +213,23 @@ SECTIONS
 
     . = ALIGN(4);
   } >DTCMRAM AT> FLASH	/* run time: DTCMRAM, storage: FLASH */
+
+
+  /**
+   * Non-cacheable section dedicated for DMA buffers.
+   * MPU must be configured to disable D-Cache for this 4KB region.
+   */
+  .nocache_dma (NOLOAD) :
+  {
+    . = ALIGN(32);
+    _snocache_dma = .;
+    
+    *(.nocache_dma)
+    *(.nocache_dma*)
+    
+    . = ALIGN(32);
+    _enocache_dma = .;
+  } >RAM_D2_NOCACHE /* in SRAM_D2, the no cache part */
 
 
   /* used by the startup to initialize code */

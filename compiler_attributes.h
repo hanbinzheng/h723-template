@@ -4,7 +4,7 @@
 #ifdef __GNUC__
 #define __ITCM_FUNC __attribute__((section(".itcm_text")))
 #define __ALWAYS_INLINE __attribute__((always_inline)) inline
-#define __WEAK __attribute__((weak))
+#define __NOCACHE_DMA __attribute__((section(".nocache_dma")))
 #else
 #define __ITCM_FUNC
 #define __ALWAYS_INLINE inline
