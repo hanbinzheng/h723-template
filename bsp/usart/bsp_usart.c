@@ -12,16 +12,22 @@ struct usart_inst {
 	uint16_t len;	/* length of rx buffer */
 };
 
+/* static variables */
 static struct usart_inst usart_inst[USART_INST_MAX_NUM];
 static uint8_t idle_buff[USART_INST_MAX_NUM * USART_BUFF_MAX_SIZE];
 __NOCACHE_DMA static uint8_t dma_buff1[USART_INST_MAX_NUM * USART_BUFF_MAX_SIZE];
 __NOCACHE_DMA static uint8_t dma_buff2[USART_INST_MAX_NUM * USART_BUFF_MAX_SIZE];
 static uint8_t idx = 0;
 
-/* TODO: use hash table instead of iteration */
-__ALWAYS_INLINE
-static struct usart_inst *get_usart_inst(UART_HandleTypeDef *huart)
+/* static helper functions */
+static void usart_idle_config(struct usart_inst *inst);
+static void usart_idle_dma_config(struct usart_inst *inst);
+static void usart_idle_callback(struct usart_inst *inst, uint16_t len);
+static void usart_idle_dma_callback(struct usart_inst *inst, uint16_t len);
+
+__ALWAYS_INLINE static struct usart_inst *get_usart_inst(UART_HandleTypeDef *huart)
 {
+	/* TODO: use hash table instead of iteration */
 	struct usart_inst *inst = NULL;
 
 	for (uint8_t i = 0; i < idx; i++) {
@@ -44,7 +50,10 @@ static void usart_idle_config(struct usart_inst *inst)
 	HAL_UARTEx_ReceiveToIdle_IT(inst->huart, inst->buff1, inst->len);
 }
 
-/* reference: https://zhuanlan.zhihu.com/p/720966722 */
+/*
+ * reference: https://zhuanlan.zhihu.com/p/720966722
+ * check HAL_UARTEx_ReceiveToIdle_DMA() in stm32h7xx_hal_uart_ex.c
+ */
 static void usart_idle_dma_config(struct usart_inst *inst)
 {
 	inst->buff1 = (dma_buff1 + idx * USART_BUFF_MAX_SIZE);
@@ -52,15 +61,35 @@ static void usart_idle_dma_config(struct usart_inst *inst)
 	inst->len = USART_BUFF_MAX_SIZE;
 	UART_HandleTypeDef *huart = inst->huart;
 
-	/* UART IDLE reception mode, check stm32h7xx_hal_uart.c for details */
+	/* configure USART with IDLE & DMA mode, check stm32h7xx_hal_uart.c for details */
 	huart->ReceptionType = HAL_UART_RECEPTION_TOIDLE;
 	huart->RxEventType = HAL_UART_RXEVENT_IDLE;
 	huart->RxXferSize = inst->len;
+	SET_BIT(huart->Instance->CR3, USART_CR3_DMAR); /* enable usart DMA mode */
+	__HAL_UART_ENABLE_IT(huart, UART_IT_IDLE);     /* enable USART IDLE interrupt */
 
-	SET_BIT(huart->Instance->CR3, USART_CR3_DMAR); /* Enable DMA */
-	__HAL_UART_ENABLE_IT(huart, UART_IT_IDLE);     /* Enable IDLE interrupt */
-
-	/* Configure DMA double buffer */
+	/** configure DMA with double buffer
+	 *
+	 * HAL_DMAEx_MultiBufferStart():
+	 * - 1. enable the double buffer mode
+	 *	((DMA_Stream_TypeDef   *)hdma->Instance)->CR |= DMA_SxCR_DBM
+	 * - 2. configure DMA stream destination address (second)
+	 *	((DMA_Stream_TypeDef   *)hdma->Instance)->M1AR = SecondMemAddress;
+	 *		DMA_SxM01R register, M0AR(Memory 0 Address)
+	 * - 3. clear all flags of the interrupt clear flag register (IFCR)
+	 *	*ifcRegister_Base = 0x3FUL << (hdma->StreamIndex & 0x1FU)
+	 * - 4. call DMA_MultiBufferSetConfig() for single DMA configure (see below)
+	 * - 5. clear something
+	 *
+	 * Tha main procedure is in  DMA_MultiBufferSetConfig(), which:
+	 * - 1. configure DMA stream data length
+	 *	((DMA_Stream_TypeDef   *)hdma->Instance)->NDTR = DataLength;
+	 * - 2. configure DMA stream source address and destination address
+	 *	((DMA_Stream_TypeDef   *)hdma->Instance)->PAR
+	 *		DMA_SxPAR register, PAR(Peripheral Address)
+	 *	((DMA_Stream_TypeDef   *)hdma->Instance)->M0AR
+	 *		DMA_SxM0AR register, M0AR(Memory 0 Address)
+	 */
 	HAL_DMAEx_MultiBufferStart(huart->hdmarx, (uint32_t)&huart->Instance->RDR,
 				   (uint32_t)inst->buff1, (uint32_t)inst->buff2, inst->len);
 }
@@ -185,6 +214,24 @@ HAL_StatusTypeDef usart_transmit(struct usart_inst *inst, uint8_t *buff, uint16_
  * - IDLE : Idle line detected (if IDLEIE enabled) -> Triggers HAL_UARTEx_RxEventCallback()
  * - RXFF : (FIFO mode) RX FIFO full  -> HAL_UARTEx_RxFifoFullCallback().
  */
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
+{
+	struct usart_inst *inst = get_usart_inst(huart);
+	if (inst == NULL) {
+		return;
+	}
+
+	switch (inst->rx_mode) {
+	case USART_RECEIVE_IT_IDLE:
+		usart_idle_callback(inst, Size);
+		break;
+	case USART_RECEIVE_IT_IDLE_DMA:
+		usart_idle_dma_callback(inst, Size);
+		break;
+	default:
+		return;
+	}
+}
 
 static void usart_idle_callback(struct usart_inst *inst, uint16_t len)
 {
@@ -197,7 +244,53 @@ static void usart_idle_callback(struct usart_inst *inst, uint16_t len)
 	HAL_UARTEx_ReceiveToIdle_IT(inst->huart, inst->buff1, inst->len);
 }
 
-/* reference: https://zhuanlan.zhihu.com/p/720966722 */
+/**
+ * @brief UART Interrupt-Driven (IDLE + DMA) Uncertain-Length DMA Reception Flow Summary
+ *
+ * check stm32h7xx_hal_uart_ex.c for details
+ *
+ * 1. User calls HAL_UARTEx_ReceiveToIdle_DMA() (omitted) or configure it manually to
+ *	start DMA-assisted uncertain-length reception
+ *    - Note: DMA  Normal or Circular mode (user choice):
+ *        a) Normal mode:   DMA stops after RxXferSize bytes are transferred.
+ *        b) Circular mode: DMA wraps around and never stops (continuous streaming).
+ *
+ * 2. Hardware streams data via DMA (no CPU intervention for data movement).
+ *    - DMA moves bytes from USART_RDR to user buffer autonomously.
+ *    - DMA_NDTR (remaining count) decrements on each transferred byte.
+ *    - CPU stays idle (or executes other tasks) during this phase.
+ *
+ * 3. Packet Termination Phase (Driven by IDLE interrupt or DMA completion):
+ *    - Scenario A: Bus becomes idle before buffer fills up (Normal DMA mode).
+ *      a) UART hardware asserts IDLE flag in USART_ISR.
+ *      b) HAL_UART_IRQHandler() calls UART_EndRxTransfer().
+ *      c) Calculates actual received length:
+ *         nb_rx_data = RxXferSize - __HAL_DMA_GET_COUNTER(hdmarx)
+ *      d) Disables DMAR (stops DMA), IDLEIE, PEIE, EIE.
+ *      e) Calls HAL_DMA_Abort() to force-stop DMA (if needed).
+ *      f) Sets RxState = READY and RxEventType = HAL_UART_RXEVENT_IDLE.
+ *      g) Calls user callback: HAL_UARTEx_RxEventCallback(huart, nb_rx_data).
+ *
+ *    - Scenario B: Buffer reaches full capacity before bus goes idle (Normal DMA mode).
+ *      a) DMA completes transfer (NDTR reaches 0), asserts TCIF (Transfer Complete) flag.
+ *      b) DMA TCIF triggers HAL_UART_RxCpltCallback() via DMA interrupt.
+ *      c) The DMA channel stops automatically (Normal mode).
+ *      d) RxEventType = HAL_UART_RXEVENT_TC (Transfer Complete).
+ *      e) HAL_UART_IRQHandler() disables IDLEIE to prevent further interrupts.
+ *      f) User callback: HAL_UART_RxCpltCallback(huart).
+ *
+ *    - Scenario C: Circular DMA mode (continuous streaming).
+ *      a) DMA wraps around and never stops (NDTR re-loads to RxXferSize).
+ *      b) IDLE interrupt can still fire when bus goes idle.
+ *      c) Callback is triggered regardless of DMA state:
+ *         HAL_UARTEx_RxEventCallback(huart, nb_rx_data)
+ *      d) DMA continues running, enabling "always listening" use cases.
+ *
+ * 5. Interrupt sources in HAL_UART_IRQHandler() (priority order):
+ *    - Error Flags: ORE, FE, NE, PE -> UART_HandleRxError() -> ErrorCallback.
+ *    - IDLE (if IDLEIE enabled) -> UART_EndRxTransfer() -> RxEventCallback(nb_rx_data).
+ *    - RXNE/RXFT (Not used when DMAR is enabled) -> ignored.
+ */
 static void usart_idle_dma_callback(struct usart_inst *inst, uint16_t len)
 {
 	UART_HandleTypeDef *huart = inst->huart;
@@ -225,25 +318,6 @@ static void usart_idle_dma_callback(struct usart_inst *inst, uint16_t len)
 	__HAL_DMA_ENABLE(huart->hdmarx);		 /* Enable DMA */
 }
 
-void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
-{
-	struct usart_inst *inst = get_usart_inst(huart);
-	if (inst == NULL) {
-		return;
-	}
-
-	switch (inst->rx_mode) {
-	case USART_RECEIVE_IT_IDLE:
-		usart_idle_callback(inst, Size);
-		break;
-	case USART_RECEIVE_IT_IDLE_DMA:
-		usart_idle_dma_callback(inst, Size);
-		break;
-	default:
-		return;
-	}
-}
-
 /**
  * @brief UART Interrupt-Driven Standard Fixed-Length Reception Flow Summary
  *
@@ -254,7 +328,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
  * - Configures huart->RxISR function pointer according to WordLength and FIFO settings.
  * - Enables RXNEIE (RX register not empty) or RXFTIE (RX FIFO threshold) along with
  *	error interrupts.
- * - Returns immediately (non-blocking).
+ * - Returns immediately (non-blocking, calling UART_Start_Receive_IT()).
  *
  * 2. Hardware triggers RXNE/RXFT interrupt when data is received from external device.
  * - HAL_UART_IRQHandler() detects the flag and calls huart->RxISR().
