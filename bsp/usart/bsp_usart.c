@@ -52,7 +52,7 @@ static void usart_idle_dma_config(struct usart_inst *inst)
 	inst->len = USART_BUFF_MAX_SIZE;
 	UART_HandleTypeDef *huart = inst->huart;
 
-	/* UART IDLE reception mode */
+	/* UART IDLE reception mode, check stm32h7xx_hal_uart.c for details */
 	huart->ReceptionType = HAL_UART_RECEPTION_TOIDLE;
 	huart->RxEventType = HAL_UART_RXEVENT_IDLE;
 	huart->RxXferSize = inst->len;
@@ -138,58 +138,6 @@ HAL_StatusTypeDef usart_transmit(struct usart_inst *inst, uint8_t *buff, uint16_
 }
 
 /**
- * @brief UART Interrupt-Driven Reception Flow Summary
- *
- * check stm32h7xx_hal_uart.c for details
- *
- * 1. User calls HAL_UART_Receive_IT() to start reception ( call UART_Start_Receive_IT() )
- * - Stores user buffer pointer, total size, and remaining count (RxXferCount) into UART handle.
- * - Configures huart->RxISR function pointer according to WordLength and FIFO settings.
- * - Enables RXNEIE (RX register not empty) or RXFTIE (RX FIFO threshold) along with error
- * 	interrupts.
- * - Returns immediately (non-blocking).
- *
- * 2. Hardware triggers RXNE/RXFT interrupt when data is received from external device.
- * - HAL_UART_IRQHandler() detects the flag and calls huart->RxISR().
- * - huart->RxISR() moves received byte(s) from RDR register / RX FIFO to the user buffer.
- * - Increments user buffer pointer and decrements huart->RxXferCount each time data is read.
- *
- * 3. Reception Completes when huart->RxXferCount reaches 0.
- * - Unlike transmission, there is no specific "reception complete" hardware interrupt.
- * 	The end of transfer is determined inside RxISR when the count hits zero.
- * - The internal logic then:
- * 	a) Disables RXNEIE / RXFTIE and error interrupts.
- * 	b) Sets RxState back to READY.
- * 	c) Calls the user complete callback (see below).
- *
- * 4. User-overridable callbacks (implement these in your code):
- * - HAL_UART_RxCpltCallback()  -> Called after the last requested byte is received and stored.
- * - HAL_UARTEx_RxFifoFullCallback() -> (FIFO mode only) when RX FIFO becomes completely full.
- * - HAL_UART_ErrorCallback()   -> if any error (Overrun ORE, Noise NE, Frame FE, Parity PE) occurs.
- * - HAL_UARTEx_RxEventCallback() -> when an IDLE event occurs (if Reception till IDLE is selected).
- *
- * Interrupt sources in HAL_UART_IRQHandler() (in priority order):
- * - Error Flags: ORE (Overrun), FE (Frame), NE (Noise), PE (Parity) -> Disables Rx or triggers
- * 			ErrorCallback.
- * - RXNE/RXFT : RX register not empty / FIFO threshold reached   -> RxISR reads and stores data.
- * - IDLE : Idle line detected (if IDLEIE enabled) -> Triggers HAL_UARTEx_RxEventCallback().
- * - RXFF : (FIFO mode) FIFO full  -> HAL_UARTEx_RxFifoFullCallback().
- *
- */
-
-/**
- * @brief  UART RX Fifo full callback.
- * @param  huart UART handle.
- * @retval None
- */
-/* not in use
-void HAL_UARTEx_RxFifoFullCallback(UART_HandleTypeDef *huart)
-{
-	return;
-}
-*/
-
-/**
  * @brief UART Interrupt-Driven Advanced Uncertain-Length (ReceiveToIdle) Reception Flow Summary
  *
  * check stm32h7xx_hal_uart.c for details
@@ -204,22 +152,23 @@ void HAL_UARTEx_RxFifoFullCallback(UART_HandleTypeDef *huart)
  *
  * 2. Stage I: High-Speed Streaming Phase (Driven by RXNE Interrupt)
  * - Every single byte arriving at the RDR register forces HAL_UART_IRQHandler() to
-	call huart->RxISR().
+	call huart->RxISR(). If FIFO is enabled, use USART_CR3_RXFTIE.
  * - The data is dumped into the internal buffer, and huart->RxXferCount decrements accordingly.
  *
  * 3. Stage II: Packet Termination Phase (Driven by IDLE or Buffer Full)
  * - Scenario A: The external device stops sending data. The bus remains idle for more
-	than 1 byte time.
- * - HAL_UART_IRQHandler() detects the IDLE flag, calculates: Size - RxXferCount.
+ *	than 1 byte time.
+ * - HAL_UART_IRQHandler() detects the IDLE flag,
+ * 	calculates: nb_rx_data = RxXferSize - RxXferCount.
  * - It completely disables RXNEIE, PEIE, and IDLEIE to secure the current buffer.
  * - Marks RxEventType as HAL_UART_RXEVENT_IDLE and safely releases RxState to READY.
- * - Calls the user-overridable event callback: HAL_UARTEx_RxEventCallback(huart, actual_len).
+ * - Calls the user-overridable event callback: HAL_UARTEx_RxEventCallback(huart, nb_rx_data).
  *
  * - Scenario B: The external sender continues blasting raw data without ever idling,
-	hitting the buffer limit.
+ *	hitting the buffer limit.
  * - huart->RxXferCount reaches 0 inside RxISR.
  * - The internal logic automatically shuts down interrupts,
-	sets RxEventType to HAL_UART_RXEVENT_TC.
+ *	sets RxEventType to HAL_UART_RXEVENT_TC.
  * - Calls the legacy weak completion callback: HAL_UART_RxCpltCallback(huart).
  *
  * 4. User-overridable callbacks (implement these in your code):
@@ -232,7 +181,7 @@ void HAL_UARTEx_RxFifoFullCallback(UART_HandleTypeDef *huart)
  * - Error Flags: ORE(Overrun), FE(Frame), NE(Noise), PE(Parity) -> Halts Rx and invokes
  * 		ErrorCallback.
  * - RXNE/RXFT : RX register not empty / FIFO threshold reached -> RxISR shifts and
-		stores data bytes.
+ *		stores data bytes.
  * - IDLE : Idle line detected (if IDLEIE enabled) -> Triggers HAL_UARTEx_RxEventCallback()
  * - RXFF : (FIFO mode) RX FIFO full  -> HAL_UARTEx_RxFifoFullCallback().
  */
@@ -276,17 +225,6 @@ static void usart_idle_dma_callback(struct usart_inst *inst, uint16_t len)
 	__HAL_DMA_ENABLE(huart->hdmarx);		 /* Enable DMA */
 }
 
-/**
- * @brief  Reception Event Callback (Rx event notification called after use of advanced reception
- * service).
- *
- * @note This callback function is for ToIdle
- *
- * @param  huart UART handle
- * @param  Size  Number of data available in application reception buffer (indicates a position in
- *               reception buffer until which, data are available)
- * @retval None
- */
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
 	struct usart_inst *inst = get_usart_inst(huart);
@@ -315,7 +253,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
  * - Stores user buffer pointer, total size, and remaining count (RxXferCount) into UART handle.
  * - Configures huart->RxISR function pointer according to WordLength and FIFO settings.
  * - Enables RXNEIE (RX register not empty) or RXFTIE (RX FIFO threshold) along with
-	error interrupts.
+ *	error interrupts.
  * - Returns immediately (non-blocking).
  *
  * 2. Hardware triggers RXNE/RXFT interrupt when data is received from external device.
@@ -325,21 +263,27 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
  *
  * 3. Reception Completes when huart->RxXferCount reaches 0.
  * - Unlike transmission, there is no specific "reception complete" hardware interrupt.
- * The end of transfer is determined inside RxISR when the count hits zero.
+ * 	The end of transfer is determined inside RxISR when the count hits zero.
  * - The internal logic then:
- * a) Disables RXNEIE / RXFTIE and error interrupts.
- * b) Sets RxState back to READY.
- * c) Calls the user complete callback: HAL_UART_RxCpltCallback().
+ * 	a) Disables RXNEIE / RXFTIE and error interrupts.
+ * 	b) Sets RxState back to READY.
+ * 	c) Calls the user complete callback: HAL_UART_RxCpltCallback().
+ *
+ * 4. User-overridable callbacks (implement these in your code):
+ * - HAL_UART_RxCpltCallback()  -> Called after the last requested byte is received and stored.
+ * - HAL_UARTEx_RxFifoFullCallback() -> (FIFO only, and need manually enable the interrupt ) when
+ *	RX FIFO becomes completely full.
+ * - HAL_UART_ErrorCallback()   -> if any error (Overrun ORE, Noise NE, Frame FE, Parity PE) occurs.
+ * - HAL_UARTEx_RxEventCallback() -> when an IDLE event occurs (if Reception till IDLE is selected).
+ *
+ * Interrupt sources in HAL_UART_IRQHandler() (in priority order):
+ * - Error Flags: ORE (Overrun), FE (Frame), NE (Noise), PE (Parity) -> Disables Rx or triggers
+ * 			ErrorCallback.
+ * - RXNE/RXFT : RX register not empty / FIFO threshold reached   -> RxISR reads and stores data.
+ * - IDLE : Idle line detected (if IDLEIE enabled) -> Triggers HAL_UARTEx_RxEventCallback().
+ * - RXFF : (FIFO mode) FIFO full  -> HAL_UARTEx_RxFifoFullCallback()
  */
 
-/**
- * @brief  Rx Transfer completed callback.
- *
- * @note This function is for HAL_UART_Transmit_IT without Idle
- * 	called by UART_RxISR_XBIT_xxxxxxxx
- * @param  huart UART handle.
- * @retval None
- */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 	struct usart_inst *inst = get_usart_inst(huart);
@@ -348,6 +292,13 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 		inst->callback(inst->buff1, inst->len);
 	}
 }
+
+/* reserved
+void HAL_UARTEx_RxFifoFullCallback(UART_HandleTypeDef *huart)
+{
+	return;
+}
+*/
 
 /**
  * @brief UART Interrupt-Driven Transmission Flow Summary
@@ -360,7 +311,8 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
  *    - Returns immediately (non-blocking).
  *
  * 2. Hardware triggers TXE/TXFT interrupt when TX register/FIFO can accept data.
- *    - Calls huart->TxISR() to move next byte(s) from buffer to TX register/FIFO.
+ * 	It Calls huart->TxISR() to:
+ *    - Move next byte(s) from buffer to TX register/FIFO.
  *    - Decrements TxXferCount each time data is written.
  *    - When TxXferCount reaches 0: disables TXE/TXFT interrupt, enables TCIE (TC interrupt).
  *
@@ -384,30 +336,14 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
  *
  */
 
-/**
- * @brief Tx Transfer completed callback.
- * @param huart UART handle.
- * @retval None
- *
- * @note called in UART_DMATransmitCplt() and UART_EndTransmit_IT(),
- * 	check stm32h7xx_hal_uart.c for details
- */
-/* TODO: enable callback for Tx Complete Interrupt, this will be called after transmit IT finished
+/* TODO: enable Tx Complete Interrupt, this will be called after transmission finished
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
 	return;
 }
 */
 
-/**
- * @brief  UART TX Fifo empty callback.
- * @param  huart UART handle.
- * @retval None
- *
- * @note called in HAL_UART_IRQHandler(), check stm32h7xx_hal_uart.c for details.
- * @note TXFE (TX FIFO Full Empty) in our code hasn't been opened, so this will not be called
- */
-/* not in use
+/* reserved
 void HAL_UARTEx_TxFifoEmptyCallback(UART_HandleTypeDef *huart)
 {
 	return;
