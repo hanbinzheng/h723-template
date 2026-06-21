@@ -8,7 +8,7 @@
 #else
 #define __ITCM_FUNC
 #define __ALWAYS_INLINE inline
-#define __WEAK
+#define __NOCACHE_DMA
 #endif
 
 #endif /* COMPILER_ATTRIBUTES_H_ */
