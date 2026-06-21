@@ -240,7 +240,9 @@ void HAL_UARTEx_RxFifoFullCallback(UART_HandleTypeDef *huart)
 static void usart_idle_callback(struct usart_inst *inst, uint16_t len)
 {
 	/* user callback to handle the data */
-	inst->callback(inst->buff1, len);
+	if (inst->callback != NULL) {
+		inst->callback(inst->buff1, len);
+	}
 
 	/* for next time idle interrupt */
 	HAL_UARTEx_ReceiveToIdle_IT(inst->huart, inst->buff1, inst->len);
@@ -258,11 +260,16 @@ static void usart_idle_dma_callback(struct usart_inst *inst, uint16_t len)
 		/* Change DMA buffer and reset NDTR */
 		((DMA_Stream_TypeDef *)huart->hdmarx->Instance)->CR |= DMA_SxCR_CT;
 
-		inst->callback(inst->buff1, len);
+		/* user callback function to handle data */
+		if (inst->callback != NULL) {
+			inst->callback(inst->buff1, len);
+		}
 	} else {
 		((DMA_Stream_TypeDef *)huart->hdmarx->Instance)->CR &= ~(DMA_SxCR_CT);
 
-		inst->callback(inst->buff2, len);
+		if (inst->callback != NULL) {
+			inst->callback(inst->buff2, len);
+		}
 	}
 
 	__HAL_DMA_SET_COUNTER(huart->hdmarx, inst->len); /* reset length */
