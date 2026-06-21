@@ -23,6 +23,6 @@ Requires manual reception via usart_receive. This is a one-time operation. If co
 
 The callback can be NULL or non-NULL. If NULL, nothing happens. If non-NULL, the callback is invoked in HAL_UART_RxCpltCallback with the buffer and length passed to usart_receive.
 
-*** 3. USART_RECEIVE_IT_IDLE / USART_RECEIVE_IT_IDLE_DMA
+*** 3. USART_RECEIVE_IDLE / USART_RECEIVE_IDLE_DMA_CIRCULAR
 
 Designed for variable-length reception. The callback is invoked within HAL_UARTEx_RxEventCallback. If NULL is passed, it won't be executed.

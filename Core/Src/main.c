@@ -123,7 +123,7 @@ void bsp_init()
 
 	struct usart_config usart10_config = {
 	    .huart = &huart10,
-	    .rx_mode = USART_RECEIVE_IT_IDLE_DMA,
+	    .rx_mode = USART_RECEIVE_IDLE_DMA_CIRCULAR,
 	    .tx_mode = USART_TRANSMIT_IT,
 	    .callback = usart10_callback,
 	};

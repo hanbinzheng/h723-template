@@ -15,9 +15,9 @@ typedef void (*usart_callback)(uint8_t *rx_buff, uint16_t len);
 enum usart_receive_mode {
 	USART_RECEIVE_NONE = 0,
 	USART_RECEIVE_POLLING,
-	USART_RECEIVE_IT,	   /* for fixed length reception */
-	USART_RECEIVE_IT_IDLE,	   /*  IDLE interrupt, for uncertain length */
-	USART_RECEIVE_IT_IDLE_DMA, /* double DMA + IDLE interrupt */
+	USART_RECEIVE_IT,		 /* for fixed length reception */
+	USART_RECEIVE_IDLE,		 /*  IDLE interrupt, for uncertain length */
+	USART_RECEIVE_IDLE_DMA_CIRCULAR, /* circular DMA + IDLE interrupt */
 };
 
 enum usart_transmit_mode {
