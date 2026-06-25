@@ -1,28 +1,164 @@
-* Usage
+#+TITLE: USART Driver Documentation
+#+AUTHOR: Hanbin Zheng
+
+* Usage & Overview
 
 ** About Reception
+- *USART_RECEIVE_POLLING* & *USART_RECEIVE_IT*: Designed for single, fixed-length reception. One is blocking, the other is non-blocking. Reception must be manually kicked off via a call to =usart_receive=.
+- *USART_RECEIVE_IDLE* & *USART_RECEIVE_IDLE_DMA_CIRCULAR*: Designed for variable-length/uncertain-length packets. They automatically listen and process incoming data through callback functions. Users need to handle data promptly inside the callback.
 
-USART_RECEIVE_POLLING and USART_RECEIVE_IT modes are designed for single, fixed-length reception. One is blocking, the other is non-blocking. Reception can only be performed through a single call to usart_receive.
+** About Transmission
+- *USART_TRANSMIT_POLLING* & *USART_TRANSMIT_IT*: Supported for single transmission. One is blocking (polling), the other is non-blocking (interrupt-driven).
 
-USART_RECEIVE_IT_IDLE and USART_RECEIVE_IT_IDLE_DMA are designed for variable-length data. They process data through callback parameters, and users need to handle the data promptly within the callback.
+---
 
-** About Transmission:
+* Code Examples
 
-Currently only USART_TRANSMIT_POLLING and USART_TRANSMIT_IT modes are supported for single transmission. One is blocking, the other is non-blocking.
+** Case 1: Polling Reception & Polling Transmission
+Designed for lightweight or low-baudrate diagnostic tasks where blocking behavior is acceptable.
 
-** Receive Usage Details
+#+BEGIN_SRC c
+#include "bsp_usart.h"
 
-*** 1. USART_RECEIVE_POLLING
+struct usart_inst *usart7 = NULL;
+uint8_t rx_buffer[32];
 
-Pass NULL as the callback. Even if you configure it, it won't be used since reception is performed through usart_receive with the specified buffer and length.
+void bsp_init()
+{
+    struct usart_config usart7_config = {
+        .huart = &huart7,
+        .rx_mode = USART_RECEIVE_POLLING,
+        .tx_mode = USART_TRANSMIT_POLLING,
+        .callback = NULL, /* Polling mode doesn't need a callback */
+    };
+    usart7 = usart_register(&usart7_config);
+}
 
+void loop_task()
+{
+    /* Blocking receive with timeout */
+    if (usart_receive(usart7, rx_buffer, 10) == HAL_OK) {
+        /* Echo back data using blocking transmit */
+        usart_transmit(usart7, rx_buffer, 10);
+    }
+}
+#+END_SRC
 
-*** 2. USART_RECEIVE_IT
+** Case 2: Idle Line + DMA Circular Reception
 
-Requires manual reception via usart_receive. This is a one-time operation. If continuous reception is needed, use USART_RECEIVE_IT or USART_RECEIVE_IT_IDLE_DMA. Alternatively, you could reset it by calling usart_receive within the callback (hacky approach), but this is strongly discouraged.
+#+BEGIN_SRC c
+#include "bsp_usart.h"
+#include <string.h>
 
-The callback can be NULL or non-NULL. If NULL, nothing happens. If non-NULL, the callback is invoked in HAL_UART_RxCpltCallback with the buffer and length passed to usart_receive.
+struct usart_inst *usart10 = NULL;
+uint8_t local_buff[50];
+int last_packet_len = 0;
 
-*** 3. USART_RECEIVE_IDLE / USART_RECEIVE_IDLE_DMA_CIRCULAR
+/* This callback fires autonomously in the HAL Rx Event interrupt context */
+void usart10_callback(uint8_t *rx_buff, uint16_t len)
+{
+    last_packet_len = len;
+    /* Copy the variable-length data safely to your processing buffer */
+    if (len <= 50) {
+        memcpy(local_buff, rx_buff, len);
+    }
+}
 
-Designed for variable-length reception. The callback is invoked within HAL_UARTEx_RxEventCallback. If NULL is passed, it won't be executed.
+void bsp_init()
+{
+    struct usart_config usart10_config = {
+        .huart = &huart10,
+        .rx_mode = USART_RECEIVE_IDLE_DMA_CIRCULAR,
+        .tx_mode = USART_TRANSMIT_NONE,
+        .callback = usart10_callback,
+    };
+    usart10 = usart_register(&usart10_config);
+
+    /* NOTE: Initialization automatically kicks off the background DMA listening */
+    /* No need to call usart_receive manually for this mode. */
+}
+#+END_SRC
+
+---
+
+* Developer Manual
+
+** 1. Uncertain-Length Reception (ReceiveToIdle) Flow
+Detailed breakdown of =USART_RECEIVE_IDLE= behavior
+
+1. *Initialization*:
+   - User registers an IDLE mode instance; the driver calls =HAL_UARTEx_ReceiveToIdle_IT()=.
+   - Marks =huart->ReceptionType = HAL_UART_RECEPTION_TOIDLE= and =huart->RxEventType = HAL_UART_RXEVENT_TC= .
+   - Internally calls =UART_Start_Receive_IT= to hook the byte-by-byte carrier interrupt handler (=huart->RxISR=), and to enable the UART Parity Error interrupt ( =(huart->Instance->CR1= and =USART_CR1_PEIE= ) and RX FIFO Threshold interrupt or Data Register Not Empty interrupt ( based on whether USART FIFO is enabled ).
+   - Sets =USART_CR1_IDLEIE= to =USART_CR1_IDLEIE= to activate hardware line idle detection.
+   - The buffer =Size= acts as a strict safety fence to prevent memory corruption.
+
+2. *Stage I: Streaming Phase (Driven by RXNE Interrupt)*:
+   - Each incoming byte at the RDR register triggers =HAL_UART_IRQHandler()=, which calls =huart->RxISR()=.
+   - Data shifts into the buffer, and =huart->RxXferCount= decrements.
+
+3. *Stage II: Packet Termination Phase* (Driven by IDLE or Buffer Full):
+   - *Scenario A (Bus Idle)*: The external device stops sending data. The bus remains idle for more than 1 byte time. Hardware asserts the *IDLE* flag. =HAL_UART_IRQHandler()= calculates actual received length: =nb_rx_data = RxXferSize - RxXferCount=. It disables =RXNEIE/IDLEIE= to secure the data, marks state as READY, and fires =HAL_UARTEx_RxEventCallback()=.
+   - *Scenario B (Buffer Full)*: External device floods data without pausing. =huart->RxXferCount= hits 0 inside RxISR. Hardware turns off interrupts, marks event as =HAL_UART_RXEVENT_TC=, and falls back to the legacy =HAL_UART_RxCpltCallback()=.
+
+** 2. Standard Fixed-Length Interrupt Reception Flow
+Detailed breakdown of =USART_RECEIVE_IT= behavior.
+
+1. *Kicking off*:
+   - User explicitly calls =usart_receive()=, invoking =HAL_UART_Receive_IT()=, which set reception type to standard reception ( =huart->ReceptionType = HAL_UART_RECEPTION_STANDARD= ) and enable the timeout interruption ( =ATOMIC_SET_BIT(huart->Instance->CR1, USART_CR1_RTOIE)= ).
+   - =HAL_UART_Receive_IT()= then calls =UART_Start_Receive_IT= to store the user buffer pointer, total size, sets =RxXferCount = len=, and do the configuration as described above.
+
+2. *Hardware Transfer*:
+   - Bytes trigger RXNE interrupts. =HAL_UART_IRQHandler()= dispatches to =huart->RxISR()=.
+   - =RxISR()= moves data from RDR into user buffer, increments buffer pointer, decrements =RxXferCount=.
+
+3. *Completion*:
+   - When =RxXferCount= hits 0, internal logic disables =RXNEIE/RXFTIE= and error interrupts, restores state to READY, and invokes =HAL_UART_RxCpltCallback()=.
+
+** 3. Uncertain-Length Circular-DMA Reception Flow (IDLE + Circular-DMA)
+Detailed breakdown of =USART_RECEIVE_IDLE_DMA_CIRCULAR= behavior. The idle interrupt logics have been thoroughly described above.
+
+1. *Configuration*:
+   - Enables USART DMA mode (=USART_CR3_DMAR=) and the IDLE interrupt (=UART_IT_IDLE=).
+   - Explicitly binds double buffers (=buff1= and =buff2=) and start DMA via =HAL_DMAEx_MultiBufferStart()=.
+
+2. *Hardware Streaming*:
+   - DMA pumps data autonomously from =USART_RDR= into memory without CPU intervention. =DMA_NDTR= decrements automatically.
+
+3. *Reception Logics (Circular Mode)*:
+   - DMA wraps around automatically when hitting buffer bounds without stopping (providing an "always listening" pipeline, though in our case it should not reach the bound).
+   - When an IDLE line is caught, the IDLE interrupt fires. =HAL_UARTEx_RxEventCallback()= is invoked. In it, callback function provided by user will be invoked. User should interpret the data immediately.
+   - The driver manually toggles the DMA target memory area (=DMA_SxCR_CT= bit) to switch between =buff1= and =buff2=, resets the counter, and hands the filled block over to your application callback.
+
+** 4. Interrupt Transmission Flow (Non-blocking Tx)
+Detailed breakdown of =USART_TRANSMIT_IT= behavior.
+
+1. *Initiation*:
+   - =HAL_UART_Transmit_IT()= records buffer, size, and triggers the =TXEIE= (Transmit register empty) or =TXFTIE= (TX FIFO threshold) interrupt.
+2. *Streaming*:
+   - Hardware triggers =TXE/TXFT= interrupt when TX register/FIFO can accept data. It Calls =huart->TxISR()= to move next byte(s) from buffer to TX register/FIFO and decrement =TxXferCount=.
+   - When =TxXferCount==0=, =TXEIE= is disabled, and =TCIE= (Transmission Complete) is enabled.
+3. *Finalization*:
+   -  Hardware triggers =TC= (Transmission Complete) interrupt when the last bit (including stop bit) has fully left the TX pin. It calls =UART_EndTransmit_IT()=, which disables =TCIE=, frees the peripheral state to READY ( set =gState= to =READY= ), and raises the user hook =HAL_UART_TxCpltCallback()=.
+
+---
+
+* Interrupt Service Priority & Sources Matrix
+
+When =HAL_UART_IRQHandler()= evaluates incoming requests, it screens them in the following deterministic order:
+
+|----------+-------------------------+-------------------+---------------------------------|
+| Priority | Interrupt Source / Flag | Trigger Condition | HAL Target Callback             |
+|----------+-------------------------+-------------------+---------------------------------|
+| 1 (High) | ORE / FE / NE / PE      | Hardware Error    | HAL_UART_ErrorCallback()        |
+|----------+-------------------------+-------------------+---------------------------------|
+|        2 | RXNE / RXFT             | Data / FIFO Ready | Managed internally by RxISR     |
+|----------+-------------------------+-------------------+---------------------------------|
+|        3 | IDLE                    | Bus Line Idle     | HAL_UARTEx_RxEventCallback()    |
+|----------+-------------------------+-------------------+---------------------------------|
+|        4 | TXE / TXFT              | TDR / FIFO Empty  | Managed internally by TxISR     |
+|----------+-------------------------+-------------------+---------------------------------|
+|        5 | TC                      | Shifter Empty     | HAL_UART_TxCpltCallback()       |
+|----------+-------------------------+-------------------+---------------------------------|
+|  6 (Low) | RXFF                    | RX FIFO Full      | HAL_UARTEx_RxFifoFullCallback() |
+|----------+-------------------------+-------------------+---------------------------------|
