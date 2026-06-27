@@ -52,6 +52,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
 
     device/buzzer/buzzer.c
     device/ws2812/ws2812.c
+    device/dbus/dbus.c
 )
 
 # Add include paths
@@ -64,6 +65,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
 
     device/buzzer
     device/ws2812
+    device/dbus
 )
 
 # Add project symbols (macros)
