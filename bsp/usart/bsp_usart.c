@@ -135,7 +135,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 	struct usart_inst *inst = get_usart_inst(huart);
 
-	if (inst->callback != NULL) {
+	if (inst->callback != NULL && inst->rx_mode == USART_RECEIVE_IT) {
 		inst->callback(inst->buff1, inst->len);
 	}
 }
