@@ -33,6 +33,7 @@
 #include "bsp_usart.h"
 
 #include "buzzer.h"
+#include "dbus.h"
 #include "ws2812.h"
 
 /* USER CODE END Includes */
@@ -60,14 +61,19 @@
 uint8_t r, g, b;
 float time = 0.0f;
 uint32_t volatile diff = 0;
-uint64_t cnt = 0;
-uint8_t buff[50];
+int usart5_cnt = 0;
+int usart5_len = 0;
+int usart10_cnt = 0;
+int usart10_len = 0;
+uint8_t usart10_buff[15];
 
 struct spi_inst *spi6 = NULL;
 struct tim_inst *tim12 = NULL;
+struct usart_inst *usart5 = NULL;
 struct usart_inst *usart7 = NULL;
 struct usart_inst *usart10 = NULL;
 
+struct dbus_data *dbus = NULL;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -81,13 +87,20 @@ void device_init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-int this_len;
-int count;
+void usart5_callback(uint8_t *rx_buff, uint16_t len)
+{
+	usart5_cnt++;
+	usart5_len = len;
+	if (len == DBUS_FRAME_LENGTH) {
+		dbus_update(rx_buff);
+	}
+}
+
 void usart10_callback(uint8_t *rx_buff, uint16_t len)
 {
-	count++;
-	this_len = len;
-	memcpy(buff, rx_buff, len);
+	usart10_cnt++;
+	usart10_len = len;
+	memcpy(usart10_buff, rx_buff, len);
 }
 
 void bsp_init()
@@ -113,6 +126,14 @@ void bsp_init()
 	tim12 = tim_register(&tim12_config);
 
 	/* usart config */
+	struct usart_config usart5_config = {
+	    .huart = &huart5,
+	    .rx_mode = USART_RECEIVE_IDLE_DMA_CIRCULAR,
+	    .tx_mode = USART_TRANSMIT_NONE,
+	    .callback = usart5_callback,
+	};
+	usart5 = usart_register(&usart5_config);
+
 	struct usart_config usart7_config = {
 	    .huart = &huart7,
 	    .rx_mode = USART_RECEIVE_POLLING,
@@ -182,6 +203,7 @@ int main(void)
 	MX_TIM12_Init();
 	MX_UART7_Init();
 	MX_USART10_UART_Init();
+	MX_UART5_Init();
 	/* USER CODE BEGIN 2 */
 	bsp_init();
 	device_init();
@@ -209,7 +231,8 @@ int main(void)
 		// uint32_t volatile after = DWT->CYCCNT;
 		// diff = after - before;
 		// cnt++;
-		dwt_delay_ms(500);
+		dwt_delay_ms(100);
+		dbus = dbus_get_data();
 	}
 	/* USER CODE END 3 */
 }
