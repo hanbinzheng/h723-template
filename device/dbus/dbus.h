@@ -63,7 +63,7 @@ struct dbus_data {
  *
  * @return pointer to current dbus info
  */
-struct dbus_data *dbus_get_data(void);
+const struct dbus_data *dbus_get_data(void);
 
 /**
  * @brief update the dbus information

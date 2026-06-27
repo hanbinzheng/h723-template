@@ -63,7 +63,7 @@ struct dbus_host {
 static struct dbus_host dbus_host;
 static struct dbus_data dbus_data;
 
-struct dbus_data *dbus_get_data(void)
+const struct dbus_data *dbus_get_data(void)
 {
 	return &dbus_data;
 }

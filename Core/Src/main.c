@@ -73,7 +73,7 @@ struct usart_inst *usart5 = NULL;
 struct usart_inst *usart7 = NULL;
 struct usart_inst *usart10 = NULL;
 
-struct dbus_data *dbus = NULL;
+const struct dbus_data *dbus = NULL;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
