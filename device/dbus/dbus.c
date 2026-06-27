@@ -1,6 +1,8 @@
 #include "dbus.h"
 #include <assert.h>
-#include <stddef.h> /* for NULLhost */
+#include <stddef.h> /* for NULL */
+
+/* check DT7_DR16_User_Manual.pdf for details */
 
 /* 364 ~ 1024 ~ 1684 */
 #define DBUS_CH_VALUE_MIN ((uint16_t)364)
@@ -33,6 +35,7 @@ struct dbus_wire {
 
 	uint16_t keyboard;
 
+	/* not documented in the manual, in reserved section */
 	uint16_t wheel : 11;
 	uint16_t unused : 5;
 };
@@ -95,7 +98,7 @@ void dbus_update(uint8_t *buff)
 	dbus_data.rs_x = (float)dbus_host.ch1 / DBUS_CH_VALUE_RANGE;
 	dbus_data.rs_y = (float)dbus_host.ch0 / DBUS_CH_VALUE_RANGE;
 
-	dbus_data.sw_l = dbus_host.s2;
+	dbus_data.sw_l = dbus_host.s2; /* hardware deviates from the manual */
 	dbus_data.sw_r = dbus_host.s1;
 
 	dbus_data.mouse_x = (float)dbus_host.mouse_x / DBUS_MOUSE_VALUE_RANGE;
