@@ -5,18 +5,12 @@
 /* check DT7_DR16_User_Manual.pdf for details */
 
 /* 364 ~ 1024 ~ 1684 */
-#define DBUS_CH_VALUE_MIN ((uint16_t)364)
-#define DBUS_CH_VALUE_MAX ((uint16_t)1684)
-#define DBUS_CH_VALUE_RANGE ((float)660)
-#define DBUS_CH_VALUE_OFFSET ((uint16_t)1024)
+#define DBUS_CHANNEL_MIN ((uint16_t)364)
+#define DBUS_CHANNEL_MAX ((uint16_t)1684)
+#define DBUS_CHANNEL_OFFSET ((uint16_t)1024)
+#define DBUS_CHANNEL_RANGE 660.0f
 
-/* 364 ~ 1024 ~ 1684 */
-#define DBUS_WHEEL_VALUE_MIN ((uint16_t)364)
-#define DBUS_WHEEL_VALUE_MAX ((uint16_t)1684)
-#define DBUS_WHEEL_VALUE_RANGE ((float)660)
-#define DBUS_WHEEL_VALUE_OFFSET ((uint16_t)1024)
-
-#define DBUS_MOUSE_VALUE_RANGE ((float)32767)
+#define DBUS_MOUSE_VALUE_RANGE 32767.0f
 
 #pragma pack(push, 1)
 struct dbus_wire {
@@ -74,10 +68,10 @@ void dbus_update(uint8_t *buff)
 	struct dbus_wire *dbus_wire = (struct dbus_wire *)buff;
 
 	/* get the host data */
-	dbus_host.ch0 = dbus_wire->ch0 - DBUS_CH_VALUE_OFFSET;
-	dbus_host.ch1 = dbus_wire->ch1 - DBUS_CH_VALUE_OFFSET;
-	dbus_host.ch2 = dbus_wire->ch2 - DBUS_CH_VALUE_OFFSET;
-	dbus_host.ch3 = dbus_wire->ch3 - DBUS_CH_VALUE_OFFSET;
+	dbus_host.ch0 = dbus_wire->ch0 - DBUS_CHANNEL_OFFSET;
+	dbus_host.ch1 = dbus_wire->ch1 - DBUS_CHANNEL_OFFSET;
+	dbus_host.ch2 = dbus_wire->ch2 - DBUS_CHANNEL_OFFSET;
+	dbus_host.ch3 = dbus_wire->ch3 - DBUS_CHANNEL_OFFSET;
 
 	dbus_host.s1 = dbus_wire->s1;
 	dbus_host.s2 = dbus_wire->s2;
@@ -90,13 +84,13 @@ void dbus_update(uint8_t *buff)
 
 	dbus_host.keyboard = dbus_wire->keyboard;
 
-	dbus_host.wheel = dbus_wire->wheel - DBUS_WHEEL_VALUE_OFFSET;
+	dbus_host.wheel = dbus_wire->wheel - DBUS_CHANNEL_OFFSET;
 
 	/* updata the dbus_data */
-	dbus_data.ls_x = (float)dbus_host.ch3 / DBUS_CH_VALUE_RANGE;
-	dbus_data.ls_y = (float)dbus_host.ch2 / DBUS_CH_VALUE_RANGE;
-	dbus_data.rs_x = (float)dbus_host.ch1 / DBUS_CH_VALUE_RANGE;
-	dbus_data.rs_y = (float)dbus_host.ch0 / DBUS_CH_VALUE_RANGE;
+	dbus_data.ls_x = (float)dbus_host.ch3 / DBUS_CHANNEL_RANGE;
+	dbus_data.ls_y = (float)dbus_host.ch2 / DBUS_CHANNEL_RANGE;
+	dbus_data.rs_x = (float)dbus_host.ch1 / DBUS_CHANNEL_RANGE;
+	dbus_data.rs_y = (float)dbus_host.ch0 / DBUS_CHANNEL_RANGE;
 
 	dbus_data.sw_l = dbus_host.s2; /* hardware deviates from the manual */
 	dbus_data.sw_r = dbus_host.s1;
@@ -109,5 +103,5 @@ void dbus_update(uint8_t *buff)
 
 	dbus_data.keyboard.key_code = dbus_host.keyboard;
 
-	dbus_data.wheel = (float)dbus_host.wheel / DBUS_WHEEL_VALUE_RANGE;
+	dbus_data.wheel = (float)dbus_host.wheel / DBUS_CHANNEL_RANGE;
 }
