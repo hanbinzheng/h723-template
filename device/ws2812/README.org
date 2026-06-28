@@ -1,0 +1,64 @@
+#+title: WS2812 LED Control
+#+author: Hanbin Zheng
+
+Check [[file:../../docs/ws2812.pdf][ws2812.pdf]] for details.
+
+* API Reference
+
+#+begin_src c
+void ws2812_register(const struct spi_inst *spi);
+#+end_src
+
+Registers the underlying SPI instance initialized by the BSP SPI module.
+
+#+begin_src c
+void ws2812_ctrl(uint8_t r, uint8_t g, uint8_t b);
+#+end_src
+
+Controls the color of the WS2812 RGB LED by converting the 8-bit Red, Green, and Blue color components into specific SPI data patterns (GRB sequence) and transmitting them over the registered bus.
+
+* Usage Example
+
+To use this module, initialize your target SPI peripheral, configure and register the hardware SPI instance, pass its handle to the WS2812 driver, and call the control function inside your main loop to dynamically refresh colors.
+
+#+begin_src c
+#include "ws2812.h"
+#include "bsp_spi.h"
+
+int main(void)
+{
+    /* Initialize basic hardware and system clocks */
+    MX_GPIO_Init();
+    MX_SPI6_Init();
+
+    /* Configure the hardware SPI instance */
+    struct spi_config spi6_config = {
+        .handle  = &hspi6,
+        .cs_port = NULL, /* WS2812 typically relies on precise timing of the MOSI line alone */
+        .cs_pin  = 0,
+    };
+    struct spi_inst *spi6 = spi_register(&spi6_config);
+
+    /* Register the SPI instance to the WS2812 driver */
+    ws2812_register(spi6);
+
+    uint8_t r = 0;
+    uint8_t g = 0;
+    uint8_t b = 0;
+
+    while (1) {
+        /* Smoothly cycle colors as an execution test */
+        ws2812_ctrl(r, g, b);
+
+        r += 1;
+        g += 5;
+        b += 10;
+
+        HAL_Delay(50);
+    }
+}
+#+end_src
+
+* Dependencies
+
+- =bsp_spi.h=: For =SPI= configuration structure definitions, instance management (=struct spi_inst=), and low-level data shifting (=spi_transmit=).
