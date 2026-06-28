@@ -1,7 +1,7 @@
 #+title: SBUS Driver Documentation
 #+author: Hanbin Zheng
 
-Check [[file:../dbus/README.org][README of dbus]] for explanation of data interpretation, and check [[file:../../docs/Futaba S-Bus.pdf][Futaba S-Bus.pdf]] for the details of protocol.
+Check [[file:../dbus/README.org][README of dbus]] for explanation of data interpretation, and check [[file:../../docs/Futaba_S-Bus.pdf][Futaba S-Bus.pdf]] for the details of protocol.
 
 * Usage
 Place the =sbus_update()= into the callback function (input the =rx_buff= for data interpretation).
