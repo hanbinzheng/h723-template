@@ -34,6 +34,7 @@
 
 #include "buzzer.h"
 #include "dbus.h"
+#include "sbus.h"
 #include "ws2812.h"
 
 /* USER CODE END Includes */
@@ -65,7 +66,6 @@ int usart5_cnt = 0;
 int usart5_len = 0;
 int usart10_cnt = 0;
 int usart10_len = 0;
-uint8_t usart10_buff[15];
 
 struct spi_inst *spi6 = NULL;
 struct tim_inst *tim12 = NULL;
@@ -73,7 +73,7 @@ struct usart_inst *usart5 = NULL;
 struct usart_inst *usart7 = NULL;
 struct usart_inst *usart10 = NULL;
 
-const struct dbus_data *dbus = NULL;
+const struct sbus_data *sbus = NULL;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -91,8 +91,8 @@ void usart5_callback(uint8_t *rx_buff, uint16_t len)
 {
 	usart5_cnt++;
 	usart5_len = len;
-	if (len == DBUS_FRAME_LENGTH) {
-		dbus_update(rx_buff);
+	if (len == SBUS_FRAME_LENGTH) {
+		sbus_update(rx_buff);
 	}
 }
 
@@ -100,7 +100,6 @@ void usart10_callback(uint8_t *rx_buff, uint16_t len)
 {
 	usart10_cnt++;
 	usart10_len = len;
-	memcpy(usart10_buff, rx_buff, len);
 }
 
 void bsp_init()
@@ -232,7 +231,7 @@ int main(void)
 		// diff = after - before;
 		// cnt++;
 		dwt_delay_ms(100);
-		dbus = dbus_get_data();
+		sbus = sbus_get_data();
 	}
 	/* USER CODE END 3 */
 }
