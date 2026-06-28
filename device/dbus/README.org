@@ -39,10 +39,10 @@ By grouping the bitstream into 8-bit chunks:
 - the second 8 bits: =1 1 0 1 0 1 0 0=
 - the last 8 bits: =1 1 1 1 1 1 1 1=
 
-Since the first received bit is placed at the LSB of a byte, when written in standard human mathematical notation (where the rightmost bit is the LSB, i.e., =bit 0=), the three bytes are:
+In LSB-first UART transmission, the first bit received on the wire becomes bit 0 (LSB) of the byte in memory. The grouping into bytes is strictly sequential: bits 0-7 go to byte0, bits 8-15 to byte1, etc. When written in standard human mathematical notation (where the rightmost bit is the LSB, i.e., =bit 0=), these three bytes are:
 #+begin_src text
 Byte 0: 0b01010101 (0x55)  <- [Bit 7 is B's low bit] [Bits 6:0 is Variable A]
-Byte 1: 0b00101011 (0x2A)  <- [Bits 7:1 is Variable C] [Bit 0 is B's high bit]
+Byte 1: 0b00101011 (0x2B)  <- [Bits 7:1 is Variable C] [Bit 0 is B's high bit]
 Byte 2: 0b11111111 (0xFF)  <- [Bits 7:0 is Variable D]
 #+end_src
 
@@ -52,7 +52,7 @@ On a Little-Endian GCC compiler, we can declare the following packed structure t
 
 #+begin_src c
 #pragma pack(push, 1)
-struct my_protocal {
+struct my_protocol {
     uint16_t A : 7;
     uint16_t B : 2;
     uint16_t C : 7;
