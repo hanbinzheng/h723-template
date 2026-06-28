@@ -1,0 +1,86 @@
+#+title: SBUS Driver Documentation
+#+author: Hanbin Zheng
+
+Check [[file:../dbus/README.org][README of dbus]] for explanation of data interpretation, and check [[file:../../docs/Futaba S-Bus.pdf][Futaba S-Bus.pdf]] for the details of protocol.
+
+* Usage
+Place the =sbus_update()= into the callback function (input the =rx_buff= for data interpretation).
+
+To get the interpreted data, use: =sbus_get_data()=.
+
+** Example
+
+#+begin_src c
+void usart5_callback(uint8_t *rx_buff, uint16_t len)
+{
+	if (len == SBUS_FRAME_LENGTH) {
+		sbus_update(rx_buff);
+	}
+}
+
+/* usart config */
+struct usart_config usart5_config = {
+    .huart = &huart5,
+    .rx_mode = USART_RECEIVE_IDLE_DMA_CIRCULAR,
+    .tx_mode = USART_TRANSMIT_NONE,
+    .callback = usart5_callback,
+};
+usart5 = usart_register(&usart5_config);
+#+end_src
+
+
+#+begin_src c
+struct sbus_data *sbus = sbus_get_data();
+#+end_src
+
+* Alternative Implementation (Bit-Shifting Method)
+
+Another way to interpret the data (bit-shifting method rather than bit-field method):
+
+#+begin_src c
+void sbus_interpret(uint8_t *buff, struct sbus_host *sbus_host)
+{
+	sbus_host->sof = buff[0];
+
+	/* ch0: buff[2][2:0] + buff[1][7:0] */
+	sbus_host->ch0 = (buff[1] | (buff[2] << 8)) & 0x07FF;
+	/* ch1: buff[3][5:0] + buff[2][7:3] */
+	sbus_host->ch1 = ((buff[2] >> 3) | (buff[3] << 5)) & 0x07FF;
+	/* ch2: buff[5][0] + buff[4][7:0] + buff[3][7:6] */
+	sbus_host->ch2 = ((buff[3] >> 6) | (buff[4] << 2) | (buff[5] << 10)) & 0x07FF;
+	/* ch3: buff[6][3:0] + buff[5][7:1] */
+	sbus_host->ch3 = ((buff[5] >> 1) | (buff[6] << 7)) & 0x07FF;
+	/* ch4: buff[7][6:0] + buff[6][7:4] */
+	sbus_host->ch4 = ((buff[6] >> 4) | (buff[7] << 4)) & 0x07FF;
+	/* ch5: buff[9][1:0] + buff[8][7:0] + buff[7][7] */
+	sbus_host->ch5 = ((buff[7] >> 7) | (buff[8] << 1) | (buff[9] << 9)) & 0x07FF;
+	/* ch6: buff[10][4:0] + buff[9][7:2] */
+	sbus_host->ch6 = ((buff[9] >> 2) | (buff[10] << 6)) & 0x07FF;
+	/* ch7: buff[11][7:0] + buff[10][7:5] */
+	sbus_host->ch7 = ((buff[10] >> 5) | (buff[11] << 3)) & 0x07FF;
+	/* ch8: buff[13][2:0] + buff[12][7:0] */
+	sbus_host->ch8 = (buff[12] | (buff[13] << 8)) & 0x07FF;
+	/* ch9: buff[14][5:0] + buff[13][7:3] */
+	sbus_host->ch9 = ((buff[13] >> 3) | (buff[14] << 5)) & 0x07FF;
+	/* ch10: buff[16][0] + buff[15][7:0] + buff[14][7:6] */
+	sbus_host->ch10 = ((buff[14] >> 6) | (buff[15] << 2) | (buff[16] << 10)) & 0x07FF;
+	/* ch11: buff[17][3:0] + buff[16][7:1] */
+	sbus_host->ch11 = ((buff[16] >> 1) | (buff[17] << 7)) & 0x07FF;
+	/* ch12: buff[18][6:0] + buff[17][7:4] */
+	sbus_host->ch12 = ((buff[17] >> 4) | (buff[18] << 4)) & 0x07FF;
+	/* ch13: buff[20][1:0] + buff[19][7:0] + buff[18][7] */
+	sbus_host->ch13 = ((buff[18] >> 7) | (buff[19] << 1) | (buff[20] << 9)) & 0x07FF;
+	/* ch14: buff[21][4:0] + buff[20][7:2] */
+	sbus_host->ch14 = ((buff[20] >> 2) | (buff[21] << 6)) & 0x07FF;
+	/* ch15: buff[22][7:0] + buff[21][7:5] */
+	sbus_host->ch15 = ((buff[21] >> 5) | (buff[22] << 3)) & 0x07FF;
+	/* bit7: ch16 (digital channel 1), bit6: ch17 (digital channel 2) */
+
+	sbus_host->ch16 = (buff[23] & 0x80) ? 1 : 0;
+	sbus_host->ch17 = (buff[23] & 0x40) ? 1 : 0;
+	sbus_host->frame_lost = (buff[23] & 0x20) ? 1 : 0;
+	sbus_host->fail_safe_act = (buff[23] & 0x10) ? 1 : 0;
+
+	sbus_host->eof = buff[24];
+}
+#+end_src

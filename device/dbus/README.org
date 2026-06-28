@@ -1,7 +1,42 @@
 #+title: D-Bus Protocol Bit-Mapping Explained
 #+author: Hanbin Zheng
 
-This document provides an explanation of how raw serial bitstreams map to C-style bit-fields on little-endian platforms (e.g., STM32 / ARM Cortex-M). It explains why we can use an elegant C =struct= to parse complex communication protocols like DJI D-Bus without manual bit-shifting.
+Check [[file:../../docs/DT7_DR16_User_Manual.pdf][DT7_DR16_User_Manual.pdf]] for details of the protocol.
+
+* Usage
+Place the =dbus_update()= into the callback function (input the =rx_buff= for data interpretation).
+
+To get the interpreted data, use: =dbus_get_data()=.
+
+** Example
+
+#+begin_src c
+void usart5_callback(uint8_t *rx_buff, uint16_t len)
+{
+	if (len == DBUS_FRAME_LENGTH) {
+		dbus_update(rx_buff);
+	}
+}
+
+/* usart config */
+struct usart_config usart5_config = {
+    .huart = &huart5,
+    .rx_mode = USART_RECEIVE_IDLE_DMA_CIRCULAR,
+    .tx_mode = USART_TRANSMIT_NONE,
+    .callback = usart5_callback,
+};
+usart5 = usart_register(&usart5_config);
+#+end_src
+
+
+#+begin_src c
+struct dbus_data *dbus = dbus_get_data();
+#+end_src
+
+
+* Data Interpretation Explanation
+
+The following parts provides an explanation of how raw serial bitstreams map to C-style bit-fields on little-endian platforms (e.g., STM32 / ARM Cortex-M). It explains why we can use an elegant C =struct= to parse complex communication protocols like DJI D-Bus without manual bit-shifting.
 
 ** The 4 Conceptual Layers of Ordering
 To understand the protocol, we must decouple four distinct layers of "directions":
