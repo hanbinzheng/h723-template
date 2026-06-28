@@ -1,0 +1,65 @@
+#+title: Documentation of Linear Probing Hash Table
+#+author: Hanbin Zheng
+
+This library provides a light-weight, fixed-size (64 entries) hash table implementation using open-addressing with linear probing.
+
+It is designed for resource-constrained systems (e.g., embedded STM32/RoboMaster platforms) to perform fast key-value lookups, such as mapping CAN IDs to function pointers.
+
+* Usage Examples
+
+** 1. Initialization
+
+Before using the hash table, it must be initialized to clear all slots and reset the element count.
+
+#+BEGIN_SRC c
+#include "hash.h"
+
+struct hash_table table;
+
+hash_init(&table);
+#+END_SRC
+
+** 2. Inserting and Updating Key-Value Pairs
+
+You can insert new key-value pairs or update the value of an existing key. 
+
+#+BEGIN_SRC c
+uint32_t key = 0x201;
+uint32_t val = (uint32_t)callback;
+
+if (hash_insert(&table, key, val)) {
+        /* successfully insert */
+} else {
+        /* fail to insert */
+}
+
+#+END_SRC
+
+** 3. Looking Up Values
+
+Retrieve the value associated with a specific key.
+
+#+BEGIN_SRC c
+uint32_t search_key = 0x201;
+uint32_t retrieved_val = 0;
+
+if (hash_lookup(&table, search_key, &retrieved_val)) {
+        /* key found */
+} else {
+        /* key not found */
+}
+#+END_SRC
+
+** 4. Removing Key-Value Pairs
+
+Remove a key from the table. The slot will be marked as deleted to maintain the linear probing chain consistency.
+
+#+BEGIN_SRC c
+uint32_t target_key = 0x201;
+
+if (hash_remove(&my_table, target_key)) {
+        /* successfully removed */
+} else {
+        /* the key doesn't exist */
+}
+#+END_SRC
