@@ -1,0 +1,75 @@
+#+title: D-Bus Protocol Bit-Mapping Explained
+#+author: Hanbin Zheng
+
+This document provides an explanation of how raw serial bitstreams map to C-style bit-fields on little-endian platforms (e.g., STM32 / ARM Cortex-M). It explains why we can use an elegant C =struct= to parse complex communication protocols like DJI D-Bus without manual bit-shifting.
+
+** The 4 Conceptual Layers of Ordering
+To understand the protocol, we must decouple four distinct layers of "directions":
+1. *Transmission Order (USART)*: The physical layer rule. Standard UART usually transmits *LSB-first* (Least Significant Bit of a byte comes out first).
+2. *Endianness (Byte-Order)*: How a multi-byte integer (e.g., =uint16_t=) is stored in memory. *Little-Endian* stores the mathematically lowest byte at the lowest memory address.
+3. *C Bit-field Packing*: How a compiler (like GCC on ARM) allocates bits for a struct. On little-endian platforms, fields are packed from the *mathematically lowest bit (LSB)* of the lowest address upward.
+4. *Mathematical Notation*: The human convention of writing binary numbers where the Leftmost bit is MSB $2^n$ and the Rightmost bit is LSB  $2^0$ .
+
+
+** Step-by-Step Concrete Example
+
+Let's trace a 3-byte (24-bit) protocol containing 4 variables:
+- *Variable A (7 bits)*: =0b1010101= (Decimal: 85)
+- *Variable B (2 bits)*: =0b10=      (Decimal: 2)
+- *Variable C (7 bits)*: =0b0010101= (Decimal: 21)
+- *Variable D (8 bits)*: =0b11111111= (Decimal: 255)
+
+
+*** 1. The Physical Bitstream (Timeline)
+The transmitter sends data sequentially from A \rightarrow B \rightarrow C \rightarrow D, starting from the lowest mathematical weight $2^0$ of each variable.
+
+The raw bitstream captured on the RX wire over time looks like this:
+#+begin_example
+Timeline ------>
+[   Variable A   ][ B ][   Variable C   ][   Variable D   ]
+1 0 1 0 1 0 1     0 1   1 0 1 0 1 0 0     1 1 1 1 1 1 1 1
+#+end_example
+
+
+*** 2. Memory Organization (Little-Endian Bytes)
+As the USART receiver hardware collects every 8 bits into a byte buffer, it places them into memory addresses increasing from left to right (=byte0= \rightarrow =byte1= \rightarrow =byte2=).
+
+By grouping the bitstream into 8-bit chunks:
+- the first 8 bits: =1 0 1 0 1 0 1 0=
+- the second 8 bits: =1 1 0 1 0 1 0 0=
+- the last 8 bits: =1 1 1 1 1 1 1 1=
+
+Since the first received bit is placed at the LSB of a byte, when written in standard human mathematical notation (where the rightmost bit is the LSB, i.e., =bit 0=), the three bytes are:
+#+begin_src text
+Byte 0: 0b01010101 (0x55)  <- [Bit 7 is B's low bit] [Bits 6:0 is Variable A]
+Byte 1: 0b00101011 (0x2A)  <- [Bits 7:1 is Variable C] [Bit 0 is B's high bit]
+Byte 2: 0b11111111 (0xFF)  <- [Bits 7:0 is Variable D]
+#+end_src
+
+
+*** 3. Mapping to C Bit-Fields
+On a Little-Endian GCC compiler, we can declare the following packed structure to match this payload precisely:
+
+#+begin_src c
+#pragma pack(push, 1)
+struct my_protocal {
+    uint16_t A : 7;
+    uint16_t B : 2;
+    uint16_t C : 7;
+    uint8_t  D;
+};
+#pragma pack(pop)
+#+end_src
+
+
+Under the hood, the compiler evaluates this structure based on little-endian packing rules:
+1. =A= is declared first, so it occupies the lowest 7 bits of the lowest byte (=byte0= bits [6:0]).
+2. =B= is declared second. It takes the next 2 available bits. Since =byte0= only has 1 bit left (bit 7), =B= spans across the boundary:
+   - Its lower bit is stored in =byte0= bit 7.
+   - Its higher bit overflows into =byte1= bit 0.
+   - Mathematically, the compiler reconstructs =B= as: ~((byte1 & 0x01) << 1) | ((byte0 & 0x80) >> 7)~.
+3. =C= takes the next 7 bits, which perfectly align with =byte1= bits [7:1].
+4. =D= is a full byte, occupying the entirety of =byte2=.
+
+** Conclusion
+This alignment is precisely why the DJI D-Bus handler works seamlessly with a single =struct= cast. The over-the-air protocol design perfectly mirrors the native memory layout of Little-Endian processors.
