@@ -1,8 +1,3 @@
-/**
- * @file hash.c
- * @brief Open-addressing linear probing hash table implementation.
- */
-
 #include "hash.h"
 #include <string.h>
 
