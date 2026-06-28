@@ -1,0 +1,62 @@
+#+title: DWT Delay & Timing
+#+author: Hanbin Zheng
+
+* API Reference
+
+#+begin_src c
+void dwt_init(uint32_t cpu_freq_mhz);
+#+end_src
+
+Initializes the =DWT== peripheral, enables the cycle counter register (=DWT->CYCCNT=), and computes the tick pre-scalers based on the system core clock frequency (MHz).
+
+#+begin_src c
+void dwt_systime_update(void);
+#+end_src
+
+Checks for 32-bit counter overflows and updates the internal 64-bit timeline. Must be called periodically if the high-level timeline or delay APIs are not actively used.
+
+#+begin_src c
+float dwt_get_timeline_s(void);
+float dwt_get_timeline_ms(void);
+uint64_t dwt_get_timeline_us(void);
+#+end_src
+
+Returns the elapsed system time in seconds, milliseconds, or microseconds since the driver initialization.
+
+#+begin_src c
+void dwt_delay_s(float delay_s);
+void dwt_delay_ms(uint32_t delay_ms);
+#+end_src
+
+Blocks execution for a specified duration using precise, cycle-accurate loop polling. These delays remain highly stable and are completely unaffected by global interrupt masking.
+
+#+begin_src c
+__ALWAYS_INLINE
+static void dwt_delay_us(uint32_t delay_us, uint32_t cpu_freq_mhz);
+#+end_src
+
+An inline, low-overhead microsecond delay tool designed for tight hardware window adjustments. Best optimized for short intervals under 1000 us.
+
+* Usage Example
+
+To use this module, initialize the core DWT configurations with your MCU main frequency, after which you can use the polling delay utilities or profile code segment executions.
+
+#+begin_src c
+#include "bsp_dwt.h"
+
+int main(void)
+{
+    /* Initialize DWT with CPU frequency */
+    dwt_init(MCU_MAIN_FREQ);
+
+    while (1) {
+        dwt_delay_ms(100);
+        
+        dwt_delay_us(20, MCU_MAIN_FREQ);
+    }
+}
+#+end_src
+
+* Dependencies
+
+- =main.h=: CMSIS Core registers (=CoreDebug=, =DWT=).
