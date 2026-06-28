@@ -1,0 +1,61 @@
+#+title: Buzzer Control
+#+author: Hanbin Zheng
+
+* API Reference
+
+#+begin_src c
+void buzzer_register(const struct tim_inst *tim);
+#+end_src
+
+Registers the underlying timer instance initialized by the BSP Timer module.
+
+#+begin_src c
+void buzzer_ctrl(uint16_t freq, uint16_t duration, float volume);
+#+end_src
+
+Directly blocks and plays a single tone with a specified frequency (Hz), duration (ms), and volume scale ([0.0, 1.0]).
+
+#+begin_src c
+void buzzer_play_song(enum song song);
+#+end_src
+
+Plays an entire preset track blocking the current execution context. Available tracks:
+- =ODE_TO_JOY=
+- =HA_JI_MI=
+
+* Usage Example
+
+To use this module, initialize your =DWT=, configure and register a hardware timer channel in =PWM= mode, pass the instance handle to the buzzer driver, and call the control or playback functions.
+
+#+begin_src c
+#include "buzzer.h"
+#include "bsp_dwt.h"
+
+int main(void)
+{
+    /* Initialize system core components */
+    dwt_init(MCU_MAIN_FREQ);
+
+    /* Configure the hardware timer instance for PWM output */
+    struct tim_config tim12_config = {
+        .htim     = &htim12,
+        .channel  = TIM_CHANNEL_2,
+        .clk_freq = APB1_FREQ * 1000000,
+        .mode     = TIM_PWM_MODE,
+    };
+    struct tim_inst *tim12 = tim_register(&tim12_config);
+
+    /* Register the timer instance to the buzzer driver */
+    buzzer_register(tim12);
+    buzzer_play_song(HA_JI_MI);
+
+    while (1) {
+        /* main loop */
+    }
+}
+#+end_src
+
+* Dependencies
+
+- =bsp_tim.h=: For timer configuration structure definitions and =PWM= controls (=tim_pwm_start=, =tim_pwm_stop=, =tim_set_pwm=).
+- =bsp_dwt.h=: Uses Data Watchpoints and Trace (=DWT=) unit for precise, cycle-accurate millisecond delays (=dwt_delay_ms=).
