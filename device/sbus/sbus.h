@@ -18,8 +18,8 @@ enum sbus_sw {
 };
 
 enum sbus_safe {
-	SBUS_SAFE = 0,
-	SBUS_UNSAFE,
+	SBUS_UNSAFE = 0,
+	SBUS_SAFE,
 };
 
 struct sbus_data {

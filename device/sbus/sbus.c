@@ -118,5 +118,5 @@ void sbus_update(uint8_t *buff)
 	sbus_data.sw4 = sbus_host.ch7;
 	sbus_data.wh1 = (float)sbus_host.ch8 / SBUS_CHANNEL_RANGE;
 	sbus_data.wh2 = (float)sbus_host.ch9 / SBUS_CHANNEL_RANGE;
-	sbus_data.safe = sbus_host.fail_safe_act || sbus_host.frame_lost;
+	sbus_data.safe = !(sbus_host.fail_safe_act || sbus_host.frame_lost);
 }
