@@ -1,0 +1,111 @@
+#+title: Documentation of Cyclic Redundancy Check
+#+author: Hanbin Zheng
+
+This library provides optimized lookup-table-based =CRC8= and =CRC16= calculations for the RoboMaster Referee System, alongside a generic bit-by-bit =CRC= calculation function.
+
+* Usage Examples
+
+** 1. RoboMaster 2026 Referee CRC8 Checksum
+
+Used to verify the frame header data (typically 5 bytes, checksum at the 5th byte).
+
+#+BEGIN_SRC c
+#include "crc.h"
+uint8_t header[] = {0xA5, 0x05, 0x00, 0x01};
+uint8_t crc8 = crc8_get_checksum(header, sizeof(header));
+#+END_SRC
+
+** 2. RoboMaster VT03 & Referee 2026 CRC16 Checksum
+
+Used to verify the entire data frame (including header, cmd_id, and data payload).
+
+#+BEGIN_SRC c
+uint8_t frame_data[max_len];
+uint32_t frame_len;
+
+uint16_t crc16 = crc16_get_checksum(frame_data, frame_len);
+#+END_SRC
+
+* Mathematical Foundation
+** 1. Algebraic Structure: The Finite Field $GF(2)$
+  The mathematical foundation of =CRC= lies within *Galois Field 2*, denoted as $GF(2)$. This field contains exactly two elements: $\{0, 1\}$.
+
+  Arithmetic operations in $GF(2)$ are strictly performed modulo 2, adhering to the following rules:
+  - *Addition*: $0 + 0 = 0$, $0 + 1 = 1$, $1 + 0 = 1$, and $1 + 1 = 0$.
+  - *Multiplication*: $0 \cdot 0 = 0$, $0 \cdot 1 = 0$, $1 \cdot 0 = 0$, and $1 \cdot 1 = 1$.
+
+  Due to the modulo 2 definition, addition yields the exact same truth table as the bitwise *exclusive-OR ( =XOR= )* operation, denoted by $\oplus$.
+
+  A highly critical algebraic property of $GF(2)$ is that addition and subtraction are identical because $1 + 1 = 0 \implies 1 = -1$.
+
+  Therefore:
+
+  $$A + B = A - B = A \oplus B$$
+
+** 2. The Polynomial Ring $GF(2)[x]$
+  Any binary stream can be uniquely mapped to a univariate polynomial within the polynomial ring $GF(2)[x]$, where all coefficients belong to $GF(2)$.
+
+  For instance, a data stream represented by the binary sequence $1101$ corresponds to the polynomial:
+
+  $$M(x) = 1 \cdot x^3 + 1 \cdot x^2 + 0 \cdot x^1 + 1 \cdot x^0 = x^3 + x^2 + 1$$
+
+  Addition of two polynomials in $GF(2)[x]$ is performed by grouping identical powers and invoking $GF(2)$ addition on their coefficients.
+
+  For example:
+
+  $$(x^3 + x^2 + 1) + (x^2 + x + 1) = x^3 + (1+1)x^2 + x + (1+1) = x^3 + x$$
+
+** 3. The CRC Operations and Mathematical Protocol
+  The core of =CRC= is polynomial division with remainder (Euclidean division) over $GF(2)[x]$.
+
+  Let the original message polynomial be $M(x)$ with a degree of $k-1$ (representing a $k$-bit data sequence).
+
+  Both the sender and receiver pre-arrange a fixed *generator polynomial* $G(x)$ of degree $n$ (which requires $n+1$ bits to represent).
+
+  The actual operational protocol unfolds as follows:
+
+  1. *Padding (Degree Realignment)*: The message polynomial $M(x)$ is multiplied by $x^n$.
+
+     This shifts the message bits to the left by $n$ positions, leaving $n$ trailing zeros at the end to reserve space for the upcoming checksum.
+
+  2. *Division*: We perform division of $M(x) \cdot x^n$ by $G(x)$ in $GF(2)[x]$.
+
+     By the polynomial division theorem, there exist unique quotient polynomial $Q(x)$ and remainder polynomial $R(x)$ such that:
+
+     $$M(x) \cdot x^n = Q(x) \cdot G(x) + R(x)$$
+
+     where the degree of the remainder satisfies $\text{deg} (R(x)) < \text{deg} (G(x)) = n$.
+
+     This remainder $R(x)$ is the $n$-bit *CRC Checksum*.
+
+  3. *Transmission Block Construction*: The sender appends the checksum to the data block.
+
+     Mathematically, the transmitted polynomial $T(x)$ is formed by adding the remainder to the padded message:
+
+     $$T(x) = M(x) \cdot x^n + R(x)$$
+
+  4. *Receiver Verification*: The receiver divides the incoming polynomial $T(x)$ by the identical generator $G(x)$.
+
+** 4. Proof of Correctness
+
+We show why an error-free transmission yields a remainder of zero.
+
+Substituting the definition of $T(x)$ into the verification division:
+
+$$\frac{T(x)}{G(x)} = \frac{M(x) \cdot x^n + R(x)}{G(x)}$$
+
+Using the relation $M(x) \cdot x^n = Q(x) \cdot G(x) + R(x)$, we substitute it back:
+
+$$T(x) = Q(x) \cdot G(x) + R(x) + R(x)$$
+
+Since addition and subtraction are identical in $GF(2)[x]$, any polynomial added to itself cancels out entirely:
+
+$$R(x) + R(x) = R(x) - R(x) = 0$$
+
+Therefore, the transmitted polynomial simplifies beautifully to:
+
+$$T(x) = Q(x) \cdot G(x)$$
+
+This proves that $T(x)$ is perfectly divisible by $G(x)$.
+
+If the receiver evaluates $T(x) \pmod{G(x)}$ and obtains a non-zero remainder, an altered bit configuration due to transmission noise is mathematically guaranteed. Actually, in practice, the common engineering practice is to use the received $M(x)$ to calculate the remainder under $G(x)$, and compare it with the provided remainder $R(x)$
