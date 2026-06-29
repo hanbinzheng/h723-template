@@ -141,7 +141,7 @@ Inside each individual FDCAN partition, sub-elements are arranged downwards from
 
 [[../../images/CAN-message-RAM-mapping.png]]
 
-*** 1. 11-bit Filter Element & 29-bit Filter Element
+**** 1. 11-bit Filter Element & 29-bit Filter Element
 - *11-bit Filter Element*:
   An 1 Word hardware slot managing standard ID filtering rules.
 
