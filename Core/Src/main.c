@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "dma.h"
+#include "fdcan.h"
 #include "gpio.h"
 #include "spi.h"
 #include "tim.h"
@@ -28,7 +29,11 @@
 /* USER CODE BEGIN Includes */
 #include <string.h>
 
+#include "crc.h"
+#include "hash.h"
+
 #include "bsp_dwt.h"
+#include "bsp_fdcan.h"
 #include "bsp_spi.h"
 #include "bsp_usart.h"
 
@@ -66,18 +71,30 @@ int usart5_cnt = 0;
 int usart5_len = 0;
 int usart10_cnt = 0;
 int usart10_len = 0;
+uint32_t id1 = 0;
+uint32_t id2 = 0;
+uint32_t id3 = 0;
+uint8_t fdcan1_buff[8] = {0};
+uint8_t fdcan2_buff[8] = {0};
+uint8_t fdcan3_buff[8] = {0};
 
 struct spi_inst *spi6 = NULL;
 struct tim_inst *tim12 = NULL;
 struct usart_inst *usart5 = NULL;
 struct usart_inst *usart7 = NULL;
 struct usart_inst *usart10 = NULL;
+struct can_inst *can1 = NULL;
+struct can_inst *can2 = NULL;
+struct can_inst *can3 = NULL;
 
 const struct sbus_data *sbus = NULL;
+
+struct hash_table table;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
+void PeriphCommonClock_Config(void);
 static void MPU_Config(void);
 /* USER CODE BEGIN PFP */
 void bsp_init(void);
@@ -102,10 +119,73 @@ void usart10_callback(uint8_t *rx_buff, uint16_t len)
 	usart10_len = len;
 }
 
+void fdcan1_callback(FDCAN_RxHeaderTypeDef *header, uint8_t *rx_buff)
+{
+	id1 = header->Identifier;
+	memcpy(fdcan1_buff, rx_buff, 8);
+	volatile int16_t pos = (rx_buff[0] << 8) | rx_buff[1];
+	volatile int16_t vel = (rx_buff[2] << 8) | rx_buff[3];
+	volatile int16_t cur = (rx_buff[4] << 8) | rx_buff[5];
+	volatile int16_t temperature = rx_buff[6];
+}
+
+void fdcan2_callback(FDCAN_RxHeaderTypeDef *header, uint8_t *rx_buff)
+{
+	id2 = header->Identifier;
+	memcpy(fdcan2_buff, rx_buff, 8);
+	volatile int16_t pos = (rx_buff[0] << 8) | rx_buff[1];
+	volatile int16_t vel = (rx_buff[2] << 8) | rx_buff[3];
+	volatile int16_t cur = (rx_buff[4] << 8) | rx_buff[5];
+	volatile int16_t temperature = rx_buff[6];
+}
+
+void fdcan3_callback(FDCAN_RxHeaderTypeDef *header, uint8_t *rx_buff)
+{
+	id3 = header->Identifier;
+	memcpy(fdcan3_buff, rx_buff, 8);
+	volatile int16_t pos = (rx_buff[0] << 8) | rx_buff[1];
+	volatile int16_t vel = (rx_buff[2] << 8) | rx_buff[3];
+	volatile int16_t cur = (rx_buff[4] << 8) | rx_buff[5];
+	volatile int16_t temperature = rx_buff[6];
+}
+
 void bsp_init()
 {
 	/* dwt config */
 	dwt_init(MCU_MAIN_FREQ);
+
+	/* fdcan config */
+	struct can_config fdcan1_config = {
+	    .hfdcan = &hfdcan1,
+	    .callback = fdcan1_callback,
+	    .mask = 0x7FF,
+	    .rx_id = 0x205,
+	    .tx_id = 0x1FF,
+	    .type = CAN_STANDARD,
+	};
+	can1 = can_register(&fdcan1_config);
+
+	struct can_config fdcan2_config = {
+	    .hfdcan = &hfdcan2,
+	    .callback = fdcan2_callback,
+	    .mask = 0x7FF,
+	    .rx_id = 0x20A,
+	    .tx_id = 0x2FF,
+	    .type = CAN_STANDARD,
+	};
+	can2 = can_register(&fdcan2_config);
+
+	struct can_config fdcan3_config = {
+	    .hfdcan = &hfdcan3,
+	    .callback = fdcan3_callback,
+	    .mask = 0x7FF,
+	    .rx_id = 0x205,
+	    .tx_id = 0x1FF,
+	    .type = CAN_STANDARD,
+	};
+	can3 = can_register(&fdcan3_config);
+
+	can_start();
 
 	/* spi config */
 	struct spi_config spi6_config = {
@@ -191,6 +271,9 @@ int main(void)
 	/* Configure the system clock */
 	SystemClock_Config();
 
+	/* Configure the peripherals common clocks */
+	PeriphCommonClock_Config();
+
 	/* USER CODE BEGIN SysInit */
 
 	/* USER CODE END SysInit */
@@ -203,10 +286,19 @@ int main(void)
 	MX_UART7_Init();
 	MX_USART10_UART_Init();
 	MX_UART5_Init();
+	MX_FDCAN1_Init();
+	MX_FDCAN2_Init();
+	MX_FDCAN3_Init();
 	/* USER CODE BEGIN 2 */
+	uint32_t tmp = 0;
+	hash_init(&table);
+	hash_insert(&table, 0, 0);
+	hash_lookup(&table, 0, &tmp);
+	hash_remove(&table, 0);
 	bsp_init();
 	device_init();
 
+	buzzer_ctrl(4000, 50, 0.5);
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
@@ -230,8 +322,9 @@ int main(void)
 		// uint32_t volatile after = DWT->CYCCNT;
 		// diff = after - before;
 		// cnt++;
-		dwt_delay_ms(100);
-		sbus = sbus_get_data();
+		dwt_delay_ms(1);
+		uint8_t tx_buff[8] = {0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00};
+		can_transmit(can3, tx_buff);
 	}
 	/* USER CODE END 3 */
 }
@@ -289,6 +382,31 @@ void SystemClock_Config(void)
 	RCC_ClkInitStruct.APB4CLKDivider = RCC_APB4_DIV2;
 
 	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_3) != HAL_OK) {
+		Error_Handler();
+	}
+}
+
+/**
+ * @brief Peripherals Common Clock Configuration
+ * @retval None
+ */
+void PeriphCommonClock_Config(void)
+{
+	RCC_PeriphCLKInitTypeDef PeriphClkInitStruct = {0};
+
+	/** Initializes the peripherals clock
+	 */
+	PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_FDCAN;
+	PeriphClkInitStruct.PLL2.PLL2M = 24;
+	PeriphClkInitStruct.PLL2.PLL2N = 200;
+	PeriphClkInitStruct.PLL2.PLL2P = 2;
+	PeriphClkInitStruct.PLL2.PLL2Q = 2;
+	PeriphClkInitStruct.PLL2.PLL2R = 2;
+	PeriphClkInitStruct.PLL2.PLL2RGE = RCC_PLL2VCIRANGE_0;
+	PeriphClkInitStruct.PLL2.PLL2VCOSEL = RCC_PLL2VCOMEDIUM;
+	PeriphClkInitStruct.PLL2.PLL2FRACN = 0;
+	PeriphClkInitStruct.FdcanClockSelection = RCC_FDCANCLKSOURCE_PLL2;
+	if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInitStruct) != HAL_OK) {
 		Error_Handler();
 	}
 }

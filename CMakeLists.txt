@@ -49,6 +49,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     algorithm/hash/hash.c
 
     bsp/dwt/bsp_dwt.c
+    bsp/fdcan/bsp_fdcan.c
     bsp/spi/bsp_spi.c
     bsp/tim/bsp_tim.c
     bsp/usart/bsp_usart.c
@@ -65,8 +66,9 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     algorithm/crc
     algorithm/hash
 
-    bsp/spi
     bsp/dwt
+    bsp/fdcan
+    bsp/spi
     bsp/tim
     bsp/usart
 
