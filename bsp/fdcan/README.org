@@ -1,0 +1,268 @@
+#+TITLE: FDCAN Peripheral Control & Routing Driver
+#+AUTHOR: Hanbin Zheng
+
+Thanks to [[https://github.com/GrassFanWang][GrassFanWang]], his article [[https://zhuanlan.zhihu.com/p/714301640][his article]] helps me a lot.
+
+This library provides a hardware abstraction layer for the STM32H7 FDCAN peripheral running in Classical CAN mode.
+
+* 1. Usage & API Reference
+
+#+BEGIN_SRC c
+struct can_inst *can_register(const struct can_config *config);
+#+END_SRC
+
+Registers a specific logical node to a physical FDCAN bus. It dynamically provisions an entry inside the Message RAM filtering segment and links its ID to the routing table. Returns a pointer to the generated instance.
+
+For a signal =FDCAN Peripheral=, you can register 8 extended can instance and 16 standard can instance at most.
+
+#+BEGIN_SRC c
+HAL_StatusTypeDef can_start(void);
+#+END_SRC
+
+Finalizes the peripheral configurations. This configures global rejection filters, activates the hardware Rx FIFO0 notifications, and transitions all allocated FDCAN peripherals into operational hardware mode. 
+
+Must be called after all configurations are registered.
+
+#+BEGIN_SRC c
+HAL_StatusTypeDef can_transmit(const struct can_inst *inst, const uint8_t *buff);
+#+END_SRC
+
+Transmits an 8-byte classical CAN payload over the bus with =tx_id= configured in =can_config=. 
+
+** Code Setup Integration Example
+
+#+BEGIN_SRC c
+#include "bsp_fdcan.h"
+
+/* User Callback Routine for Motor Feedback */
+void chassis_motor_cb(FDCAN_RxHeaderTypeDef *header, uint8_t *rx_buff)
+{
+        uint16_t mechanical_angle = (rx_buff[0] << 8) | rx_buff[1];
+        int16_t rotor_speed       = (rx_buff[2] << 8) | rx_buff[3];
+        /* Process motor kinematics... */
+}
+
+int main(void)
+{
+        /* Initialization routines */
+        HAL_Init();
+        SystemClock_Config();
+        MX_FDCAN1_Init();
+
+        /* Define configurations */
+        struct can_config motor_left_config = {
+            .hfdcan   = &hfdcan1,
+            .type     = CAN_STANDARD,
+            .rx_id    = 0x201,       /* Feedback ID from motor */
+            .mask     = 0x7FF,       /* Exact match mask */
+            .tx_id    = 0x200,       /* Target control box ID */
+            .callback = chassis_motor_cb
+        };
+
+        /* Register nodes to the routing system */
+        struct can_inst *motor_left = can_register(&motor_left_config);
+
+        /* Commit and power up hardware */
+        can_start();
+
+        uint8_t control_payload[8] = {0x01, 0x02, 0x03, 0x04, 0x00, 0x00, 0x00, 0x00};
+
+        while (1) {
+                can_transmit(motor_left, control_payload);
+                HAL_Delay(1);
+        }
+}
+#+END_SRC
+
+* 2. CAN Foundations
+
+[[../../images/FDCAN-block-diagram.png]]
+
+** (1) Classical CAN Frame Protocol
+
+This [[https://www.bilibili.com/video/BV1vu4m1F7Gt/?p=1][video]] explains the can protocol in details.
+
+Classical CAN utilizes differential signaling to establish robust multi-master communication across a twisted pair. Standard frames match the 11-bit identifier layout while Extended frames provide a 29-bit address landscape.
+
+[[../../images/classical-can-protocol.png]]
+
+*Standard Frame Layout (11-bit ID)*
+- *SOF*: Start of Frame bit indicating bus dominance transition.
+- *Arbitration Field*: Contains the 11-bit Base ID and the RTR (Remote Transmission Request) bit which establishes priority.
+- *Control Field*: Contains IDE (Identifier Extension) bit (0 for Standard) and the 4-bit DLC (Data Length Code).
+- *Data Field*: Explicit 0 to 8 bytes payload.
+- *CRC Field*: Cyclic Redundancy Check sequence for error detection.
+- *ACK Field*: Two slots where receiving nodes drive dominant bits to signal packet integrity.
+
+*Extended Frame Layout (29-bit ID)*
+- *Arbitration Field*: Splits addresses into an 11-bit Base ID, a dominant SRR (Substitute Remote Request), a recessive IDE bit signaling extended format, and an additional 18-bit Extended Identifier payload.
+
+** (2) Bit Timing Theory and Derivations
+
+To compensate for phase shifts, oscillator tolerances, and propagation delays without a shared clock line, a single nominal CAN bit time is divided into non-overlapping segments mapped out in nominal time quanta ($TQ$).
+
+[[../../images/bit-timing.png]]
+
+A single nominal bit is composed of four explicit architectural blocks:
+- *Sync_Seg*: Synchronization Segment. Always fixed at $1 \cdot TQ$. Used to synchronize various nodes on the bus upon transitions.
+- *Prop_Seg*: Propagation Segment. Compensates for physical delays along the physical bus wires and internal driver delays.
+- *Phase_Seg1*: Phase Buffer Segment 1. Can be dynamically lengthened by the controller hardware to realign with phase leading edges.
+- *Phase_Seg2*: Phase Buffer Segment 2. Can be dynamically shortened by the controller hardware to adjust for lagging edges.
+- *SJW (Synchronization Jump Width)*: Defines the maximum boundary limit by which $Phase\_Seg1$ and $Phase\_Seg2$ can be expanded or contracted during hard resynchronizations. It acts as a safety margin and is handled internally by the bit timing engine based on tolerances; hence, it does not directly alter the steady-state baud rate denominator expression.
+
+The exact mathematical expression to achieve a precise target Baud Rate is derived as follows:
+
+$$ \text{BaudRate} = \frac{ \text{Freq} / \text{Prescaler}}{1 + \text{TimeSeg1} + \text{TimeSeg2}} $$
+
+Where:
+- $Freq$ is the peripheral input clock frequency feeding the FDCAN controller.
+- $prescaler$ is the clock divider yielding the time quantum period ($TQ$).
+- $1$ accounts for the hard-coded $Sync\_Seg$.
+- $TimeSeg1$ explicitly consolidates the sum of $Prop\_Seg + Phase\_Seg1$.
+- $TimeSeg2$ maps directly to $Phase\_Seg2$.
+
+** (3) STM32H7 Message RAM Logical Mapping
+
+Unlike legacy bxCAN blocks, the H7 FDCAN controller shifts frame storage to a shared Message RAM architecture. The memory space relies on relative byte offsets. 
+
+Please read through the *Chapter 4: Implementation of CAN-FD in STM32 devices* of [[file:../../docs/CAN-FD-Application-Note.pdf][FDCAN Application Note]] or [[file:../../docs/CAN-FD-Application-Note-CN.pdf][FDCAN Application Note CN]] for details.
+
+This README only provides a quick reference.
+
+[[../../images/CAN-message-RAM-mapping.png]]
+
+*** The Shared Memory Pool Concept
+In the STM32H7, $1 \text{Word} = 4 \text{ Bytes}$. The entire Message RAM is a continuous, single shared memory pool with a total capacity of:
+
+$$ 2560 \times 4 \text{Bytes} = 10240 \text{Bytes} = 10 \text{KB} $$
+
+Because this $10 \text{KB}$ block is shared globally among all FDCAN peripherals (FDCAN1, FDCAN2, and FDCAN3), you must use the =Message RAM Offset= parameter to carve out isolated boundaries for each peripheral's starting point. 
+
+For example, if FDCAN1's starting offset is set to $0$ and its allocated filters, FIFOs, and Buffers aggregate to $1000 \text{ Words}$, FDCAN2's starting offset *must* be configured at $1000$ or higher to prevent destructive memory overlapping. 
+
+Inside each individual FDCAN partition, sub-elements are arranged downwards from its base offset in a strict, hardcoded hardware structural sequence.
+
+*** Memory Component Technical Details
+- *Rx FIFO 0 / Rx FIFO 1*: Complete hardware-managed circular ring buffers. They accept incoming messages matching the filter blocks. Utilizing separate FIFOs enables physical segregation of distinct priority levels.
+- *Rx Buffer*: A dedicated block designed to capture specific frame IDs tied to absolute physical storage spaces instead of a queue. This is bypassed for dynamic runtime nodes.
+- *Tx Event FIFO*: Tracks detailed tracking status metrics (Acknowledge timestamps, transmission completion markers) of packets sent over the bus.
+- *Tx Buffer / Tx FIFO / Tx Queue*: The storage structures used to queue messages for transmission.
+  - *Tx FIFO*: A First-In, First-Out layout that retains chronological transmission structure.
+  - *Tx Queue*: A structural priority-based transmission engine that automatically transmits messages based on lowest CAN ID value first to optimize bus arbitration.
+
+**** 1. 11-bit Filter Element & 29-bit Filter Element
+- *11-bit Filter Element*
+	A 32-bit ($1 \text{Word}$) hardware slot managing standard ID filtering rules to route targeted frames into specified Rx FIFOs.
+- *29-bit Filter Element*
+	A 64-bit ($2 \text{Words}$) hardware slot handling extended ID masking and filtering parameters.
+
+**** 2. Rx FIFO vs. Rx Buffer
+- *Rx FIFO 0 / Rx FIFO 1 (Receive First-In, First-Out Queues)*
+  - *Mechanism*
+	Acts as a *public conveyor belt*. Any incoming message on the bus that successfully matches the filter criteria is sequentialized and pushed into the FIFO. When the CPU processes data, it must fetch messages in strict chronological order—the oldest frame must be pulled first.
+  - *Use Case*
+	Perfect for high-frequency, continuous streams of structured telemetry.
+- *Rx Buffer (Dedicated Receive Buffer)*
+  - *Mechanism*
+	Acts as a *private VIP suite*. It completely bypasses temporal queuing. You can configure a filter to state: /"When a frame with ID 0x111 arrives, do not place it in the FIFO queue; deposit it directly into Rx Buffer slot 0."/ When a new frame with ID $0x111$ is captured, it immediately overwrites the stale data inside that specific slot.
+  - *Use Case*: 
+	Ideal for sporadic, non-periodic but highly critical messages where only the *latest state value* matters.
+
+**** 3. Tx Event FIFO
+- *Mechanism*
+	Think of this as the *shipping manifest or receipt logbook*. An "Event" specifically denotes a successful bus transmission. When this tracking layer is active, every time the FDCAN successfully transmits a frame onto the physical bus, the hardware automatically appends a record into the Tx Event FIFO, logging the precise CAN ID and a high-resolution hardware transmission timestamp.
+- *Use Case*
+	Primarily utilized for network time-synchronization or rigorous diagnostic timeline analysis in automotive networks. For standard real-time robotic actuator control loops, this ledger is redundant. To conserve internal Message RAM, its element count is set to $0$ in CubeMX, freeing up memory space for actual payload buffers.
+
+**** 4. Tx Buffers (Dedicated Tx Buffer vs. Tx FIFO / Tx Queue)
+The total memory allocated to Tx Buffers is physically divided into two sub-regions: the first half is mapped to Dedicated Tx Buffers, while the remaining half feeds the FIFO/Queue block.
+- *Dedicated Tx Buffer*
+	Acts as an *assigned, designated shipping workstation*. Each individual slot is explicitly bound to a dedicated structural task in your code.
+- *Tx FIFO / Tx Queue*
+  - *Mechanism*
+	Designed as a *backlog handling zone* when the CPU queues up frames faster than the physical bus arbitration clock can clear them.
+    - *Tx FIFO Mode*
+	Follows a strict chronological order. Messages are transmitted exactly in the order the software pushed them into the buffer (First-In, First-Out).
+    - *Tx Queue Mode*: 
+	Operates as a *high-priority express lane*. Transmission order is governed entirely by the priority of the CAN IDs themselves.
+
+* 3. Hardware Implementation & CubeMX Configuration
+
+** (1) 1 Mbps Baud Rate & Dual-Domain Bit Timing Alignment
+
+$$ \text{BaudRate} = \frac{\text{Freq} / \text{Prescaler}}{1 + \text{TimeSeg1} + \text{TimeSeg2}} $$
+
+*** Core Tuning Principles
+
+- *Minimize Prescaler (BRP)*: Keeps $t_q$ (time quantum) as small as possible to maximize timing resolution. Coarse granularities lead to cumulative clock errors and inaccurate sample points.
+- *Maximize SJW (Sync Jump Width)*: Set $SJW = TimeSeg2$. A larger SJW gives the hardware maximum capability to dynamically compensate for phase shifts caused by long buses or heavy EMI.
+- *Align Sample Points ($75\% \sim 87.5\%$)*: Mismatched sample points cause nodes to read different levels on distorted waveforms, triggering error frames. At high speeds ($> 800 \text{ kbps}$), parasitic capacitance rounds off signal edges; moving the sample point upstream ($\approx 75\%$) prevents reading tail-end signal reflections.
+
+*** H7 FDCAN Classical CAN Configuration
+
+Both Nominal (Arbitration) and Data domain baud rates are locked at exactly *1 Mbps* using a *100 MHz* FDCAN clock source (=PLL2Q=).
+
+**** Nominal (Arbitration) Domain
+BRP is bypassed ($BRP = 1$) to achieve maximum $t_q$ resolution.
+- *Nominal Prescaler*: $1 \rightarrow t_q = 10 \text{ ns}$
+- *Nominal TimeSeg1*: $74$
+- *Nominal TimeSeg2*: $25$
+- *Nominal SJW*: $25$
+
+$$ \text{Total TQ} = 1 + 74 + 25 = 100 $$
+
+$$ \text{BaudRate} = \frac{100 \text{MHz} / 1}{1 + 74 + 25} = 1 \text{Mbps} $$
+
+$$ \text{Sample Point} = \frac{1 + 74}{100} = 75.0\% $$
+
+**** Data Domain
+Hardware limits register fields ($TimeSeg1 \le 32$, $TimeSeg2 \le 16$). $BRP = 4$ is chosen to precisely hit a matching target sample point.
+- *Data Prescaler*: $4 \rightarrow t_q = 40 \text{ns}$
+- *Data TimeSeg1*: $17$
+- *Data TimeSeg2*: $7$
+- *Data SJW*: $7$ (Maximized to match $TimeSeg2$)
+
+$$ \text{Total TQ} = 1 + 17 + 7 = 25 $$
+$$ \text{BaudRate} = \frac{100 \text{MHz} / 4}{1 + 17 + 7} = 1 \text{Mbps} $$
+$$ \text{Sample Point} = \frac{1 + 17}{25} = 72.0\% $$
+
+** (2) Shared Message RAM Layout Design
+
+The STM32H7 provides a total of $2560 \text{ Words}$ of shared Message RAM. To operate FDCAN1, FDCAN2, and FDCAN3 concurrently without memory corruption, the total space is split equally with an allocation window of $853 \text{ Words}$ per peripheral:
+
+- *FDCAN1 RAM Offset*: 0
+- *FDCAN2 RAM Offset*: 853
+- *FDCAN3 RAM Offset*: 1706
+
+*** Peripheral Sub-Element Allocation (Per FDCAN)
+
+For Classical CAN mode (8-byte data payload), each element size is strictly bounded to fixed word lengths. The structural memory footprint per FDCAN instance is calculated as follows:
+
+|---------------------+---------------------+-----------------------+--------------------+-------------------------------|
+| RAM Element         | Configured Elements | Word Size Per Element | Total Size (Words) | Technical Notes               |
+|---------------------+---------------------+-----------------------+--------------------+-------------------------------|
+| 11-bit Filter (Std) |                  16 | 1 Word                |                 16 | Standard ID Filters           |
+|---------------------+---------------------+-----------------------+--------------------+-------------------------------|
+| 29-bit Filter (Ext) |                   8 | 2 Words               |                 16 | Extended ID Filters           |
+|---------------------+---------------------+-----------------------+--------------------+-------------------------------|
+| Rx FIFO 0           |                  32 | 4 Words               |                128 | Main unified RX queue         |
+|---------------------+---------------------+-----------------------+--------------------+-------------------------------|
+| Rx FIFO 1           |                   0 | 4 Words               |                  0 | Bypassed                      |
+|---------------------+---------------------+-----------------------+--------------------+-------------------------------|
+| Rx Buffer           |                   0 | 4 Words               |                  0 | Bypassed                      |
+|---------------------+---------------------+-----------------------+--------------------+-------------------------------|
+| Tx Event FIFO       |                   0 | 2 Words               |                  0 | Bypassed                      |
+|---------------------+---------------------+-----------------------+--------------------+-------------------------------|
+| Tx Buffers (FIFO)   |                  32 | 4 Words               |                128 | Dedicated Buffers + FIFO = 32 |
+|---------------------+---------------------+-----------------------+--------------------+-------------------------------|
+
+- *Total Memory Used Per FDCAN*: $16 + 16 + 128 + 0 + 0 + 0 + 128 = 288 \text{ Words}$
+- *Total Available Margin*: Each FDCAN is allocated $853 \text{ Words}$, meaning the $288 \text{ Words}$ footprint is safely within hardware limits.
+
+** (3) other configurations
+- *RX Path*
+	All incoming traffic is routed exclusively to *Rx FIFO 0*. *Rx FIFO 1* and *Rx Buffer* are disabled ($0$ elements).
+- *TX Path*:
+	Configured in *Tx FIFO mode*. Due to CubeMX constraints, the sum of Dedicated Tx Buffers and Tx FIFO elements must equal $32$. Thus, Dedicated Tx Buffers is set to $0$ and *Tx FIFO* is set to $32$.
+- *Interrupts*: 
+	Only *Rx FIFO 0 New Message* interrupt is activated and mapped to Interrupt Line 0 across all instances, processing all incoming data via a unified callback block.
