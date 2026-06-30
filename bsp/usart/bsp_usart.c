@@ -37,7 +37,7 @@ __ALWAYS_INLINE static struct usart_inst *get_usart_inst(UART_HandleTypeDef *hua
 		}
 	}
 
-	return inst; /* fail to find */
+	return NULL; /* fail to find */
 }
 
 struct usart_inst *usart_register(const struct usart_config *config)

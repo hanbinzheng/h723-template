@@ -10,7 +10,6 @@
 ** About Transmission
 - *USART_TRANSMIT_POLLING* & *USART_TRANSMIT_IT*: Supported for single transmission. One is blocking (polling), the other is non-blocking (interrupt-driven).
 
----
 
 * Code Examples
 
@@ -79,7 +78,6 @@ void bsp_init()
 }
 #+END_SRC
 
----
 
 * Developer Manual
 
@@ -141,7 +139,6 @@ Detailed breakdown of =USART_TRANSMIT_IT= behavior.
 3. *Finalization*:
    -  Hardware triggers =TC= (Transmission Complete) interrupt when the last bit (including stop bit) has fully left the TX pin. It calls =UART_EndTransmit_IT()=, which disables =TCIE=, frees the peripheral state to READY ( set =gState= to =READY= ), and raises the user hook =HAL_UART_TxCpltCallback()=.
 
----
 
 * Interrupt Service Priority & Sources Matrix
 
