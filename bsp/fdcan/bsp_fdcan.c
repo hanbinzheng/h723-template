@@ -111,7 +111,7 @@ struct can_inst *can_register(const struct can_config *config)
 		return NULL;
 	}
 	config_inst_elements(config, inst);
-	hash_insert(&(canbus->table), inst->rx_id, (uint32_t)inst->callback); /* no need to check */
+	hash_insert(&(canbus->table), inst->rx_id, (uint32_t)inst); /* no need to check */
 
 	/* update index */
 	if (config->type == CAN_STANDARD)
@@ -181,10 +181,10 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 		if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &header, rx_buff) != HAL_OK)
 			return; /* fails to get message */
 
-		can_callback callback = NULL;
-		if (hash_lookup(&(canbus->table), header.Identifier, (uint32_t *)&callback)) {
-			if (callback != NULL) {
-				callback(&header, rx_buff);
+		struct can_inst *inst = NULL;
+		if (hash_lookup(&(canbus->table), header.Identifier, (uint32_t *)&inst)) {
+			if (inst != NULL) {
+				inst->callback(inst, rx_buff);
 			}
 		}
 	}

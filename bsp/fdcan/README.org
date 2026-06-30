@@ -35,7 +35,7 @@ Transmits an 8-byte classical CAN payload over the bus with =tx_id= configured i
 #include "bsp_fdcan.h"
 
 /* User Callback Routine for Motor Feedback */
-void chassis_motor_cb(FDCAN_RxHeaderTypeDef *header, uint8_t *rx_buff)
+void chassis_motor_cb(struct can_inst *inst, uint8_t *rx_buff)
 {
         uint16_t mechanical_angle = (rx_buff[0] << 8) | rx_buff[1];
         int16_t rotor_speed       = (rx_buff[2] << 8) | rx_buff[3];

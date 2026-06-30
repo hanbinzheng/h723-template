@@ -71,9 +71,6 @@ int usart5_cnt = 0;
 int usart5_len = 0;
 int usart10_cnt = 0;
 int usart10_len = 0;
-uint32_t id1 = 0;
-uint32_t id2 = 0;
-uint32_t id3 = 0;
 uint8_t fdcan1_buff[8] = {0};
 uint8_t fdcan2_buff[8] = {0};
 uint8_t fdcan3_buff[8] = {0};
@@ -119,34 +116,19 @@ void usart10_callback(uint8_t *rx_buff, uint16_t len)
 	usart10_len = len;
 }
 
-void fdcan1_callback(FDCAN_RxHeaderTypeDef *header, uint8_t *rx_buff)
+void fdcan1_callback(struct can_inst *inst, uint8_t *rx_buff)
 {
-	id1 = header->Identifier;
 	memcpy(fdcan1_buff, rx_buff, 8);
-	volatile int16_t pos = (rx_buff[0] << 8) | rx_buff[1];
-	volatile int16_t vel = (rx_buff[2] << 8) | rx_buff[3];
-	volatile int16_t cur = (rx_buff[4] << 8) | rx_buff[5];
-	volatile int16_t temperature = rx_buff[6];
 }
 
-void fdcan2_callback(FDCAN_RxHeaderTypeDef *header, uint8_t *rx_buff)
+void fdcan2_callback(struct can_inst *inst, uint8_t *rx_buff)
 {
-	id2 = header->Identifier;
 	memcpy(fdcan2_buff, rx_buff, 8);
-	volatile int16_t pos = (rx_buff[0] << 8) | rx_buff[1];
-	volatile int16_t vel = (rx_buff[2] << 8) | rx_buff[3];
-	volatile int16_t cur = (rx_buff[4] << 8) | rx_buff[5];
-	volatile int16_t temperature = rx_buff[6];
 }
 
-void fdcan3_callback(FDCAN_RxHeaderTypeDef *header, uint8_t *rx_buff)
+void fdcan3_callback(struct can_inst *inst, uint8_t *rx_buff)
 {
-	id3 = header->Identifier;
 	memcpy(fdcan3_buff, rx_buff, 8);
-	volatile int16_t pos = (rx_buff[0] << 8) | rx_buff[1];
-	volatile int16_t vel = (rx_buff[2] << 8) | rx_buff[3];
-	volatile int16_t cur = (rx_buff[4] << 8) | rx_buff[5];
-	volatile int16_t temperature = rx_buff[6];
 }
 
 void bsp_init()

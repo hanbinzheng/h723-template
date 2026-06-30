@@ -6,7 +6,7 @@
 #include <stdint.h>
 
 struct can_inst;
-typedef void (*can_callback)(FDCAN_RxHeaderTypeDef *header, uint8_t *rx_buff);
+typedef void (*can_callback)(struct can_inst *inst, uint8_t *rx_buff);
 
 /* only classical can is supported, no fdcan */
 enum can_type {
