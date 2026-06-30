@@ -177,7 +177,72 @@ The total memory allocated to Tx Buffers is physically divided into two sub-regi
 
 * 3. CubeMX Configuration
 
-** (1) 1 Mbps Baud Rate & Dual-Domain Bit Timing Alignment
+** (1) Quick Reference
+
+|-------------------------+--------------------------------------+-------------------------------------------|
+| Item                    |                        Configuration | Notes                                     |
+|-------------------------+--------------------------------------+-------------------------------------------|
+| clock                   |                       PLL2Q (100MHz) | None                                      |
+|-------------------------+--------------------------------------+-------------------------------------------|
+| NVIC                    |               FDCAN1/2/3 interrupt 0 | Use interrupt 1 needs other configuration |
+|-------------------------+--------------------------------------+-------------------------------------------|
+| Frame Format            |                         Classic mode | Use FDCAN as classical CAN                |
+|-------------------------+--------------------------------------+-------------------------------------------|
+| Mode                    |                          Normal mode | None                                      |
+|-------------------------+--------------------------------------+-------------------------------------------|
+| Auto Retransmission     |                               Enable | When tx fails, auto-retransmit            |
+|-------------------------+--------------------------------------+-------------------------------------------|
+| Transmit Pause          |                              Disable | FDCAN feature                             |
+|-------------------------+--------------------------------------+-------------------------------------------|
+| Protocol Exception      |                               Enable | None                                      |
+|-------------------------+--------------------------------------+-------------------------------------------|
+| Nominal Sync Jump Width |                                   25 | See below                                 |
+|-------------------------+--------------------------------------+-------------------------------------------|
+| Data Prescaler          |                                    4 | See below                                 |
+|-------------------------+--------------------------------------+-------------------------------------------|
+| Data Sync Jump Width    |                                    7 | See below                                 |
+|-------------------------+--------------------------------------+-------------------------------------------|
+| Data Time Seg 1         |                                   17 | See below                                 |
+|-------------------------+--------------------------------------+-------------------------------------------|
+| Data Time Seg 2         |                                    7 | See below                                 |
+|-------------------------+--------------------------------------+-------------------------------------------|
+| Message Ram Offset      | FDCAN1: 0, FDCAN2: 853, FDCAN3: 1705 | See below                                 |
+|-------------------------+--------------------------------------+-------------------------------------------|
+| Std Filters Nbr         |                                   16 | See below                                 |
+|-------------------------+--------------------------------------+-------------------------------------------|
+| Ext Filters Nbr         |                                    8 | See below                                 |
+|-------------------------+--------------------------------------+-------------------------------------------|
+| Rx Fifo0 Elmts Nbr      |                                   32 | See below                                 |
+|-------------------------+--------------------------------------+-------------------------------------------|
+| Rx Fifo0 Elmts Size     |                   8 bytes data field | None                                      |
+|-------------------------+--------------------------------------+-------------------------------------------|
+| Rx Fifo1 Elmts Nbr      |                                    0 | None                                      |
+|-------------------------+--------------------------------------+-------------------------------------------|
+| Rx Fifo1 Elmts Size     |                   8 bytes data field | None                                      |
+|-------------------------+--------------------------------------+-------------------------------------------|
+| Rx Buffers Nbr          |                                    0 | None                                      |
+|-------------------------+--------------------------------------+-------------------------------------------|
+| Rx BUffer Size          |                    8 byte data field | None                                      |
+|-------------------------+--------------------------------------+-------------------------------------------|
+| Tx Events Nbr           |                                    0 | See below                                 |
+|-------------------------+--------------------------------------+-------------------------------------------|
+| Tx Buffers Nbr          |                                    0 | See Below                                 |
+| Tx Fifo Queue Elmts Nbr |                                   32 | See below                                 |
+|-------------------------+--------------------------------------+-------------------------------------------|
+| Tx Fifo Queue Mode      |                            FIFO mode | See below                                 |
+|-------------------------+--------------------------------------+-------------------------------------------|
+| Tx Elmt Size            |                   8 bytes data field | See below                                 |
+|-------------------------+--------------------------------------+-------------------------------------------|
+| Clock Calibration       |                              Disable | None                                      |
+|-------------------------+--------------------------------------+-------------------------------------------|
+| Nominal Prescaler       |                                    1 | See below                                 |
+|-------------------------+--------------------------------------+-------------------------------------------|
+| Nominal Time Seg1       |                                   74 | See below                                 |
+|-------------------------+--------------------------------------+-------------------------------------------|
+| Nominal Time Seg2       |                                   25 | See below                                 |
+|-------------------------+--------------------------------------+-------------------------------------------|
+
+** (2) 1 Mbps Baud Rate & Dual-Domain Bit Timing Alignment
 
 $$ \text{BaudRate} = \frac{\text{Freq} / \text{Prescaler}}{1 + \text{TimeSeg1} + \text{TimeSeg2}} $$
 
@@ -199,7 +264,7 @@ Both Nominal (Arbitration) and Data domain baud rates are locked at exactly *1 M
 **** (1) Arbitration Domain (Nominal in CubeMX)
 
 BRP is bypassed ($BRP = 1$) to achieve maximum $t_q$ resolution
-- *Nominal Prescaler*: 1 $\rightarrow t_q = $ 10 ns
+- *Nominal Prescaler*: 1 => $t_q$ = 10 ns
 - *Nominal TimeSeg1*: 74
 - *Nominal TimeSeg2*: 25
 - *Nominal SJW*: 25
@@ -211,7 +276,7 @@ $$ \text{Sample Point} = \frac{1 + 74}{100} = 75.0\% $$
 **** (2) Data Domain
 
 Hardware limits register fields (TimeSeg1 < 32, TimeSeg2 < 16). BRP = 4 is chosen to precisely hit a matching target sample point.
-- *Data Prescaler*: 4 $\rightarrow t_q$  = 40 ns
+- *Data Prescaler*: 4 => $t_q$  = 40 ns
 - *Data TimeSeg1*: 17
 - *Data TimeSeg2*: 7
 - *Data SJW*: 7
@@ -220,7 +285,7 @@ $$ \text{Total TQ} = 1 + 17 + 7 = 25 $$
 $$ \text{BaudRate} = \frac{100 \text{MHz} / 4}{1 + 17 + 7} = 1 \text{Mbps} $$
 $$ \text{Sample Point} = \frac{1 + 17}{25} = 72.0\% $$
 
-** (2) Shared Message RAM Layout Design
+** (3) Shared Message RAM Layout Design
 
 The STM32H7 provides a total of $2560 \text{ Words}$ of shared Message RAM. To operate FDCAN1, FDCAN2, and FDCAN3 concurrently without memory corruption, the total space is split equally with an allocation window of $853 \text{ Words}$ per peripheral:
 
