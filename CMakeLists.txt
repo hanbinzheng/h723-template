@@ -50,6 +50,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
 
     bsp/dwt/bsp_dwt.c
     bsp/fdcan/bsp_fdcan.c
+    bsp/rtt/SEGGER_RTT/RTT/SEGGER_RTT.c
+    bsp/rtt/SEGGER_RTT/RTT/SEGGER_RTT_printf.c
     bsp/spi/bsp_spi.c
     bsp/tim/bsp_tim.c
     bsp/usart/bsp_usart.c
@@ -68,6 +70,8 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
 
     bsp/dwt
     bsp/fdcan
+    bsp/rtt
+    bsp/rtt/SEGGER_RTT/RTT
     bsp/spi
     bsp/tim
     bsp/usart
