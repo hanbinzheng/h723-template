@@ -32,6 +32,7 @@
 #include "crc.h"
 #include "hash.h"
 
+#include "SEGGER_RTT.h"
 #include "bsp_dwt.h"
 #include "bsp_fdcan.h"
 #include "bsp_spi.h"
@@ -281,6 +282,13 @@ int main(void)
 	device_init();
 
 	buzzer_ctrl(4000, 50, 0.5);
+
+	SEGGER_RTT_printf(0, "\r\n========================================\r\n");
+	SEGGER_RTT_printf(0, "  FUCKING ROBOMASTER STM32 RTT Terminal Test\r\n");
+	SEGGER_RTT_printf(0, "  Build Time: %s %s\r\n", __DATE__, __TIME__);
+	SEGGER_RTT_printf(0, "========================================\r\n");
+	uint32_t loop_counter = 0;
+
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
@@ -304,9 +312,13 @@ int main(void)
 		// uint32_t volatile after = DWT->CYCCNT;
 		// diff = after - before;
 		// cnt++;
+		// dwt_delay_ms(1);
+		// uint8_t tx_buff[8] = {0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00};
+		// can_transmit(can3, tx_buff);
+		SEGGER_RTT_printf(0, "[INFO]: Loop running, count = %d\r\n", loop_counter++);
 		dwt_delay_ms(1);
-		uint8_t tx_buff[8] = {0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00};
-		can_transmit(can3, tx_buff);
+
+		// buzzer_ctrl(4000, 50, 0.5);
 	}
 	/* USER CODE END 3 */
 }
