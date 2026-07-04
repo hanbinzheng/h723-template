@@ -1,0 +1,48 @@
+#+title: RTT Logging Utility
+#+author: Hanbin Zheng
+
+* I. API Reference
+
+All logging outputs are directed to *RTT Channel 0* (forwarded by OpenOCD to ~localhost:9000~).
+
+*** 1. ~LOG_INFO(format, ...)~
+- *Description:* Logs informational messages with standard formatting.
+- *Color:* Default terminal text.
+
+*** 2. ~LOG_DEBUG(format, ...)~
+- *Description:* Logs debug or warning messages.
+- *Color:* Bright Yellow (Bold).
+
+*** 3. ~LOG_ERROR(format, ...)~
+- *Description:* Logs critical failures or hardware faults.
+- *Color:* Bright Red (Bold).
+
+* II. Usage Example
+
+Include the header and invoke the macros directly inside your firmware files:
+
+#+begin_src c
+#include "util_log.h"
+
+void Motor_Init(void) {
+    LOG_INFO("Chassis CAN motors initializing...");
+
+    uint16_t motor_id = 0x201;
+    if (motor_id == 0x201) {
+        LOG_DEBUG("Motor ID 0x%X requires position calibration!", motor_id);
+    } else {
+        LOG_ERROR("Invalid Motor ID detected! Initialization aborted.");
+    }
+}
+#+end_src
+
+* III. How to View Output
+
+To view the live scrolling logs completely outside of your IDE environment:
+
+1. Ensure your GDB/OpenOCD session is active.
+2. Open a standard Mac/Linux terminal window and run:
+	
+#+begin_src bash
+nc localhost 9000
+#+end_src

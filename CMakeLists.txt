@@ -80,6 +80,8 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     device/dbus
     device/sbus
     device/ws2812
+
+    util/log
 )
 
 # Add project symbols (macros)
