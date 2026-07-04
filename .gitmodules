@@ -1,0 +1,3 @@
+[submodule "bsp/rtt/RTT"]
+	path = bsp/rtt/RTT
+	url = https://github.com/SEGGERMicro/RTT.git
