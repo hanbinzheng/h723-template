@@ -1,0 +1,72 @@
+#r+title: Real-Time Transfer (RTT) Guide
+#+author: Hanbin Zheng
+
+* I. Introduction
+
+- *Source Repository:* https://github.com/SEGGERMicro/RTT/
+- *Examples:* Check [[file:./SEGGER_RTT/README.md][Official README]] and [[file:./SEGGER_RTT/Examples][Official Examples]] for detailed official usage guidance.
+
+* II. CRITICAL RULES & WORKFLOWS
+
+*** 1. Configuration Isolation
+#+begin_important
+You should *ONLY* modify the configuration file [[file:./SEGGER_RTT_Conf.h][SEGGER_RTT_Conf.h]].
+#+end_important
+
+#+begin_warning
+DO NOT touch, edit, or modify any other source or header files in the [[file:./SEGGER_RTT/RTT][RTT]] directory under any circumstances.
+#+end_warning
+
+*** 2. Accessing Channel 0 Terminal Logs
+=OpenOCD= acts as a background socket gateway that automatically intercepts the =RTT= Control Block memory area and pipes *Channel 0* directly to your computer's local TCP stack.
+
+To read the terminal log stream completely decoupled from the IDE, simply open a new Mac/Linux terminal window and run:
+
+#+begin_src bash
+nc localhost 9000
+#+end_src
+
+* III. Configuration Parameters Explained (~SEGGER_RTT_Conf.h~)
+
+Below are the key definitions available for override inside [[file:./SEGGER_RTT_Conf.h][SEGGER_RTT_Conf.h]]. Customize these settings to suit your target architecture requirements:
+
+*** ~SEGGER_RTT_MAX_NUM_UP_BUFFERS~ (Default: =3=)
+Defines the maximum number of Up-buffers (Target -> Host communication channels) allocated in RAM. 
+
+Channel 0 is always reserved implicitly for the ~Terminal~ =stdout= string stream.
+
+*** ~SEGGER_RTT_MAX_NUM_DOWN_BUFFERS~ (Default: =3=)
+Defines the maximum number of Down-buffers (Host -> Target communication channels) allocated in RAM to handle runtime incoming data packets from the PC to the micro-controller.
+
+*** ~BUFFER_SIZE_UP~ (Current: =2048= | Default: =1024=)
+Specifies the size of the upstream Ring Buffer for Channel 0 (~Terminal~). 
+
+Increasing this value to =2048= bytes prevents character truncation or text drops during rapid bursts of high-frequency debug string updates. 
+
+Note that 1 byte is always sacrificed internally to distinguish between 'Full' and 'Empty' states.
+
+*** ~BUFFER_SIZE_DOWN~ (Default: =16=)
+Specifies the size of the downstream Ring Buffer for Channel 0 to buffer keyboard input or control frames pushed down from the debugger terminal.
+
+*** ~SEGGER_RTT_MODE_DEFAULT~ (Default: =SEGGER_RTT_MODE_NO_BLOCK_SKIP=)
+Controls target CPU execution behavior when an =RTT= ring buffer becomes saturated before OpenOCD flushes it:
+- ~SEGGER_RTT_MODE_NO_BLOCK_SKIP~: (Recommended) Completely non-blocking. If the buffer fills up, new characters are discarded safely. The code never stalls, preserving deterministic control loops.
+- ~SEGGER_RTT_MODE_NO_BLOCK_TRIM~: Non-blocking, but overwrites old data to fit newer log strings.
+- ~SEGGER_RTT_MODE_BLOCK_IF_FIFO_FULL~: Blocks the processor core entirely until space frees up. 
+	
+*WARNING*: Never use =SEGGER_RTT_MODE_BLOCK_IF_FIFO_FULL= in control code as it halts critical real-time execution.
+
+*** ~SEGGER_RTT_PRINTF_BUFFER_SIZE~ (Current: =256u= | Default: =64=)
+The internal stack-allocated local string formatting buffer size utilized whenever ~SEGGER_RTT_printf()~ parses a string format template. 
+
+Bumping this to =256u= guarantees that complex long strings with many formatting tokens do not overflow during assembly.
+
+*** ~SEGGER_RTT_MEMCPY_USE_BYTELOOP~ (Default: =0=)
+Forces RTT memory copies to operate over an explicit raw byte loop when set to =1=. 
+
+Left at =0=, it allows the compiler to use optimized standard ~memcpy~ functions for maximum memory transfer performance.
+
+*** ~SEGGER_RTT_MAX_INTERRUPT_PRIORITY~ (Default: =0x20=)
+Configures the critical section locking priority threshold level. 
+
+Interrupts with a priority status numerically lower than this setting (higher actual urgency) are allowed to preempt RTT execution blocks safely, while those with lower priority will be blocked. 
