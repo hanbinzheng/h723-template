@@ -11,7 +11,7 @@
 
 #define LOG_DEBUG(format, ...)                                                                     \
 	SEGGER_RTT_printf(LOG_RTT_CHANNEL,                                                         \
-			  RTT_CTRL_TEXT_BRIGHT_YELLOW "[ERROR][%s:%d]: " format RTT_CTRL_RESET     \
+			  RTT_CTRL_TEXT_BRIGHT_YELLOW "[DEBUG][%s:%d]: " format RTT_CTRL_RESET     \
 						      "\r\n",                                      \
 			  __FILE_NAME__, __LINE__, ##__VA_ARGS__)
 
