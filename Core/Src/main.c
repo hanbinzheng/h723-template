@@ -44,6 +44,7 @@
 #include "ws2812.h"
 
 #include "util_log.h"
+#include "util_vofa.h"
 
 /* USER CODE END Includes */
 
@@ -282,6 +283,7 @@ int main(void)
 	hash_remove(&table, 0);
 	bsp_init();
 	device_init();
+	vofa_init();
 
 	buzzer_ctrl(4000, 50, 0.5);
 
@@ -289,6 +291,10 @@ int main(void)
 	LOG_ERROR("FUCKING ROBOMASTER STM32 RTT Terminal Test"); /* for red color */
 	LOG_DEBUG("========================================");	 /* for yellow color */
 	uint32_t loop_counter = 0;
+
+	float target = 0.0f;
+	float actual = 0.0f;
+	float time_ticks = 0.0f;
 
 	/* USER CODE END 2 */
 
@@ -318,6 +324,10 @@ int main(void)
 		// can_transmit(can3, tx_buff);
 		LOG_INFO("Loop running, count = %d", loop_counter++);
 
+		target = 100.0f * __builtin_sinf(time_ticks);
+		actual += (target - actual) * 0.1f;
+		time_ticks += 0.05f;
+		vofa_send(target, actual);
 		dwt_delay_ms(10);
 
 		// buzzer_ctrl(4000, 50, 0.5);

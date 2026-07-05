@@ -60,6 +60,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     device/dbus/dbus.c
     device/sbus/sbus.c
     device/ws2812/ws2812.c
+
+    util/vofa/util_vofa.c
 )
 
 # Add include paths
@@ -82,6 +84,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     device/ws2812
 
     util/log
+    util/vofa
 )
 
 # Add project symbols (macros)
