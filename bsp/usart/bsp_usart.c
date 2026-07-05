@@ -5,7 +5,7 @@ struct usart_inst {
 	UART_HandleTypeDef *huart;
 	enum usart_receive_mode rx_mode;
 	enum usart_transmit_mode tx_mode;
-	usart_callback callback;
+	usart_rx_callback callback;
 
 	uint8_t *buff1; /* receive buffer or DMA buffer 1 */
 	uint8_t *buff2; /* only for DMA buffer 2 */

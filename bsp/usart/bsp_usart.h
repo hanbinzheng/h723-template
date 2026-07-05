@@ -9,7 +9,7 @@
 #define USART_BUFF_MAX_SIZE 64
 
 struct usart_inst;
-typedef void (*usart_callback)(uint8_t *rx_buff, uint16_t len);
+typedef void (*usart_rx_callback)(uint8_t *rx_buff, uint16_t len);
 
 /* for unknown length case, the size should less than USART_BUFF_MAX_SIZE */
 enum usart_receive_mode {
@@ -30,7 +30,7 @@ struct usart_config {
 	UART_HandleTypeDef *huart;
 	enum usart_receive_mode rx_mode;
 	enum usart_transmit_mode tx_mode;
-	usart_callback callback; /* rx callback for IT_IDLE and IT_IDLE_DMA */
+	usart_rx_callback callback; /* for IT_IDLE and IT_IDLE_DMA */
 };
 
 /**
