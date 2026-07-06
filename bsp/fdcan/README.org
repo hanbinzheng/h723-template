@@ -8,26 +8,40 @@ This library provides a hardware abstraction for the =STM32H7 FDCAN= peripheral 
 * 1. Usage & API Reference
 
 #+BEGIN_SRC c
-struct can_inst *can_register(const struct can_config *config);
+struct can_rx_inst *can_register_rx(const struct can_rx_config *config);
 #+END_SRC
 
-Registers a specific instance to a physical =FDCAN= peripheral. It provisions an entry inside the Message RAM filtering segment and returns a pointer to the generated instance.
+Registers an RX instance to a physical =FDCAN= peripheral. It provisions an entry inside the Message RAM filtering segment, inserts the entry into the internal hash table mapping for fast runtime ISR routing, and returns a pointer to the generated RX instance.
 
-For a signal =FDCAN Peripheral=, you can register 8 extended and 16 standard can instance at most.
+For a single =FDCAN= peripheral, you can register a maximum of 16 standard and 8 extended RX instances.
+
+#+BEGIN_SRC c
+struct can_tx_inst *can_register_tx(const struct can_tx_config *config);
+#+END_SRC
+
+Registers a TX instance to a physical =FDCAN= peripheral. It presets the static =FDCAN_TxHeaderTypeDef= metadata for classical CAN execution (8-byte data length, bit rate switch off). It also performs deduplication checks to prevent duplicate ID registrations on the same bus.
+
+For a single =FDCAN= peripheral, you can register a maximum of 8 TX instances.
 
 #+BEGIN_SRC c
 HAL_StatusTypeDef can_start(void);
 #+END_SRC
 
-Finalizes the peripheral configurations. Must be called after all configurations are registered.
+Finalizes the peripheral configurations. Must be called after all RX configurations are registered. TX configuration can be done after the ~can_start()~, but it is highly recommended that you should finish all configuration before ~can_start()~;
 
-This configures global rejection filters, activates the hardware =RxFIFO0= notifications, and transitions all allocated =FDCAN= peripherals into operational hardware mode.
+This configures global rejection filters, activates the hardware =RxFIFO0= notifications/interrupts, and transitions all allocated =FDCAN= peripherals into operational hardware mode.
 
 #+BEGIN_SRC c
-HAL_StatusTypeDef can_transmit(const struct can_inst *inst, const uint8_t *buff);
+void can_set_tx_id(struct can_tx_inst *inst, uint32_t id);
 #+END_SRC
 
-Transmits an 8-byte classical CAN payload over the bus with =tx_id= configured in =can_config=. 
+Dynamically updates the CAN Identifier associated with a specific TX instance.
+
+#+BEGIN_SRC c
+HAL_StatusTypeDef can_transmit(const struct can_tx_inst *inst, const uint8_t *buff);
+#+END_SRC
+
+Transmits an 8-byte classical CAN payload over the bus using the pre-allocated TX instance. It checks the TX FIFO free level before submission to prevent blocking or overriding pending frames.
 
 ** Code Setup Integration Example
 
@@ -35,7 +49,7 @@ Transmits an 8-byte classical CAN payload over the bus with =tx_id= configured i
 #include "bsp_fdcan.h"
 
 /* User Callback Routine for Motor Feedback */
-void chassis_motor_cb(struct can_inst *inst, uint8_t *rx_buff)
+void chassis_motor_cb(struct can_rx_inst *inst, uint8_t *rx_buff)
 {
         uint16_t mechanical_angle = (rx_buff[0] << 8) | rx_buff[1];
         int16_t rotor_speed       = (rx_buff[2] << 8) | rx_buff[3];
@@ -50,17 +64,23 @@ int main(void)
         MX_FDCAN1_Init();
 
         /* Define configurations */
-        struct can_config motor_left_config = {
+        struct can_rx_config motor_rx_config = {
             .hfdcan   = &hfdcan1,
             .type     = CAN_STANDARD,
-            .rx_id    = 0x201,       /* Feedback ID from motor */
-            .mask     = 0x7FF,       /* Exact match mask */
-            .tx_id    = 0x200,       /* Target control box ID */
+            .id       = 0x201,             /* Feedback ID from motor */
+            .mask     = 0x7FF,             /* Exact match mask */
             .callback = chassis_motor_cb
         };
 
+        struct can_tx_config motor_tx_config = {
+            .hfdcan   = &hfdcan1,
+            .type     = CAN_STANDARD,
+            .id       = 0x200              /* Target control box ID */
+        };
+
         /* Register nodes to the routing system */
-        struct can_inst *motor_left = can_register(&motor_left_config);
+        struct can_rx_inst *motor_left_rx = can_register_rx(&motor_rx_config);
+        struct can_tx_inst *motor_left_tx = can_register_tx(&motor_tx_config);
 
         /* Commit and power up hardware */
         can_start();
@@ -68,7 +88,8 @@ int main(void)
         uint8_t control_payload[8] = {0x01, 0x02, 0x03, 0x04, 0x00, 0x00, 0x00, 0x00};
 
         while (1) {
-                can_transmit(motor_left, control_payload);
+                /* Transmit control packet */
+                can_transmit(motor_left_tx, control_payload);
                 HAL_Delay(1);
         }
 }
