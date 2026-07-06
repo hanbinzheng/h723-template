@@ -32,6 +32,7 @@
 #include "crc.h"
 #include "hash.h"
 
+#include "SEGGER_RTT.h"
 #include "bsp_dwt.h"
 #include "bsp_fdcan.h"
 #include "bsp_spi.h"
@@ -41,6 +42,9 @@
 #include "dbus.h"
 #include "sbus.h"
 #include "ws2812.h"
+
+#include "util_log.h"
+#include "util_vofa.h"
 
 /* USER CODE END Includes */
 
@@ -279,8 +283,19 @@ int main(void)
 	hash_remove(&table, 0);
 	bsp_init();
 	device_init();
+	vofa_init();
 
 	buzzer_ctrl(4000, 50, 0.5);
+
+	LOG_DEBUG("========================================");	 /* for yellow color */
+	LOG_ERROR("FUCKING ROBOMASTER STM32 RTT Terminal Test"); /* for red color */
+	LOG_DEBUG("========================================");	 /* for yellow color */
+	uint32_t loop_counter = 0;
+
+	float target = 0.0f;
+	float actual = 0.0f;
+	float time_ticks = 0.0f;
+
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
@@ -304,9 +319,18 @@ int main(void)
 		// uint32_t volatile after = DWT->CYCCNT;
 		// diff = after - before;
 		// cnt++;
-		dwt_delay_ms(1);
-		uint8_t tx_buff[8] = {0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00};
-		can_transmit(can3, tx_buff);
+		// dwt_delay_ms(1);
+		// uint8_t tx_buff[8] = {0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00};
+		// can_transmit(can3, tx_buff);
+		LOG_INFO("Loop running, count = %d", loop_counter++);
+
+		target = 100.0f * __builtin_sinf(time_ticks);
+		actual += (target - actual) * 0.1f;
+		time_ticks += 0.05f;
+		vofa_send(target, actual);
+		dwt_delay_ms(10);
+
+		// buzzer_ctrl(4000, 50, 0.5);
 	}
 	/* USER CODE END 3 */
 }

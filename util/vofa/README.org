@@ -1,0 +1,90 @@
+#+title: VOFA+ Documentation
+#+author: Hanbin Zheng
+
+* I. Overview
+
+This telemetry suite utilizes the ARM Cortex-M background DAP (Debug Access Port) via RTT (Real-Time Transfer) to stream high-frequency visualization packets without consuming hardware UART peripherals or requiring extra USB-TTL wiring.
+
+We divide the RTT upstream pipes into two dedicated channels:
+
+We use the RTT upstream channel 1 to pipes raw IEEE-754 binary float packets to TCP port ~9001~ (JustFloat format).
+
+* II. API Reference
+
+The VOFA+ telemetry driver is designed for extreme efficiency, bypassing typical run-time variable argument parsing overhead by leveraging compile-time static array initialization.
+
+*** 1. ~vofa_init()~
+Initializes and binds a static 2048-byte RAM ring buffer to RTT Up-Buffer Channel 1.
+
+Return: ~VOFA_SUCCESS (0)~ on success, ~VOFA_FAILURE (-1)~ on failure.
+
+*** 2. ~vofa_send(...)~
+A reflective macro that accepts any number of arguments. It automatically deduces the parameter count, handles implicit single-precision float conversion, writes binary buffers, and appends the standard JustFloat frame tail (~0x00 0x00 0x80 0x7F~).
+
+* III. Quick Start & Usage Example
+To stream telemetry, call ~vofa_init()~ once during the board's startup phase, and feed variables to ~vofa_send(...)~ inside your control loop:
+
+#+begin_src c
+#include "bsp_dwt.h"
+#include "util_vofa.h"
+
+int main(void)
+{
+        dwt_init(MCU_MAIN_FREQ);
+	vofa_init();
+
+	float target = 0.0f;
+	float actual = 0.0f;
+	float time_ticks = 0.0f;
+
+	while (1) {
+		target = 100.0f * __builtin_sinf(time_ticks);
+                actual += (target - actual) * 0.1f;
+                time_ticks += 0.05f;
+
+                vofa_send(target, actual);
+                dwt_delay_ms(10);
+	}
+}
+#+end_src
+
+Low-Level Hex Stream Verification
+If you suspect transmission errors, you can bypass VOFA+ and inspect the raw binary stream directly from your Mac terminal using a Netcat pipeline paired with a hex dumper:
+
+#+begin_src bash
+nc localhost 9001 | xxd
+#+end_src
+
+You should observe contiguous blocks of 4-byte single-precision floats terminated by the constant NaN frame-end identifier:
+
+#+begin_src text
+00000000: 0000 c842 0000 0000 0000 807f..........
+          ^-------^ ^-------^ ^-------^
+           Float 1    Float 2  JustFloat Tail (0x7F800000 / NaN)
+#+end_src
+
+* IV. VOFA+ Upper Monitor Configuration
+
+Learning Materials:
+- VOFA+ Official Docs: [[https://www.vofa.plus/docs/learning][Documentation]]
+- Supplements: [[https://b23.tv/q44mjxD][Bilibili Tutorial]]
+
+Open your VOFA+ software and follow these configurations to map the binary network stream to the grapher canvas:
+
+*** 1. Protocols & Connections (Left Sidebar)
+
+Data Interface: ~TCP Client~
+
+Data Engine: ~JustFloat~
+
+Server IP: ~127.0.0.1~ (localhost)
+
+Server Port: ~9001~ (mapped to RTT Channel 1)
+
+*** 2. Graphic Layout
+
+Drag the Waveform control widget onto your main canvas grid.
+
+Right-click the Waveform widget, go to Settings. Bind *X-axis* to *Timeline* and *Y-axis* to *All*.
+
+Click the Connect (Play) button in the left sidebar above the TCP Client connector.
