@@ -71,8 +71,6 @@ int usart5_cnt = 0;
 int usart5_len = 0;
 int usart10_cnt = 0;
 int usart10_len = 0;
-uint8_t fdcan1_buff[8] = {0};
-uint8_t fdcan2_buff[8] = {0};
 uint8_t fdcan3_buff[8] = {0};
 
 struct spi_inst *spi6 = NULL;
@@ -80,10 +78,12 @@ struct tim_inst *tim12 = NULL;
 struct usart_inst *usart5 = NULL;
 struct usart_inst *usart7 = NULL;
 struct usart_inst *usart10 = NULL;
-struct can_rx_inst *can1 = NULL;
-struct can_rx_inst *can2 = NULL;
-struct can_rx_inst *can3 = NULL;
+struct can_rx_inst *can3_rx = NULL;
 struct can_tx_inst *can3_tx = NULL;
+int16_t vel, pos, eff;
+uint32_t fuck = 0;
+HAL_StatusTypeDef start = HAL_BUSY;
+HAL_StatusTypeDef tx = HAL_ERROR;
 
 const struct sbus_data *sbus = NULL;
 
@@ -117,19 +117,12 @@ void usart10_callback(uint8_t *rx_buff, uint16_t len)
 	usart10_len = len;
 }
 
-void fdcan1_callback(struct can_rx_inst *inst, uint8_t *rx_buff)
-{
-	memcpy(fdcan1_buff, rx_buff, 8);
-}
-
-void fdcan2_callback(struct can_rx_inst *inst, uint8_t *rx_buff)
-{
-	memcpy(fdcan2_buff, rx_buff, 8);
-}
-
 void fdcan3_callback(struct can_rx_inst *inst, uint8_t *rx_buff)
 {
 	memcpy(fdcan3_buff, rx_buff, 8);
+	pos = (int16_t)(((rx_buff[0] << 8) | rx_buff[1]) & 0xFFFF);
+	vel = (int16_t)(((rx_buff[2] << 8) | rx_buff[3]) & 0xFFFF);
+	eff = (int16_t)(((rx_buff[4] << 8) | rx_buff[5]) & 0xFFFF);
 }
 
 void bsp_init()
@@ -138,32 +131,14 @@ void bsp_init()
 	dwt_init(MCU_MAIN_FREQ);
 
 	/* fdcan config */
-	struct can_rx_config fdcan1_config = {
-	    .hfdcan = &hfdcan1,
-	    .callback = fdcan1_callback,
-	    .mask = 0x7FF,
-	    .id = 0x205,
-	    .type = CAN_STANDARD,
-	};
-	can1 = can_register_rx(&fdcan1_config);
-
-	struct can_rx_config fdcan2_config = {
-	    .hfdcan = &hfdcan2,
-	    .callback = fdcan2_callback,
-	    .mask = 0x7FF,
-	    .id = 0x20A,
-	    .type = CAN_STANDARD,
-	};
-	can2 = can_register_rx(&fdcan2_config);
-
 	struct can_rx_config fdcan3_config = {
 	    .hfdcan = &hfdcan3,
 	    .callback = fdcan3_callback,
 	    .mask = 0x7FF,
-	    .id = 0x205,
+	    .id = 0x208,
 	    .type = CAN_STANDARD,
 	};
-	can3 = can_register_rx(&fdcan3_config);
+	can3_rx = can_register_rx(&fdcan3_config);
 
 	struct can_tx_config fdcan3_tx_config = {
 	    .hfdcan = &hfdcan3,
@@ -172,7 +147,7 @@ void bsp_init()
 	};
 	can3_tx = can_register_tx(&fdcan3_tx_config);
 
-	can_start();
+	start = can_start();
 
 	/* spi config */
 	struct spi_config spi6_config = {
@@ -310,8 +285,9 @@ int main(void)
 		// diff = after - before;
 		// cnt++;
 		dwt_delay_ms(1);
-		uint8_t tx_buff[8] = {0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00};
-		can_transmit(can3_tx, tx_buff);
+		uint8_t tx_buff[8] = {0x05, 0x00, 0x05, 0x00, 0x00, 0x00, 0x05, 0x00};
+		tx = can_transmit(can3_tx, tx_buff);
+		fuck++;
 	}
 	/* USER CODE END 3 */
 }
