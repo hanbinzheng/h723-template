@@ -209,29 +209,10 @@ HAL_StatusTypeDef can_transmit(const struct can_tx_inst *inst, const uint8_t *bu
 	return HAL_FDCAN_AddMessageToTxFifoQ(inst->hfdcan, &(inst->header), buff);
 }
 
-HAL_StatusTypeDef can_transmit_dynamic(const struct can_tx_inst *inst, uint32_t id_dynamic,
-				       const uint8_t *buff)
+void can_set_tx_id(struct can_tx_inst *inst, uint32_t id)
 {
-	assert(inst != NULL && buff != NULL && inst->hfdcan != NULL);
-
-	if (HAL_FDCAN_GetTxFifoFreeLevel(inst->hfdcan) == 0) {
-		return HAL_BUSY; /* whether FIFO is full */
-	}
-
-	/* configure tx inst elements */
-	FDCAN_TxHeaderTypeDef header = {
-	    .Identifier = id_dynamic,
-	    .IdType = inst->header.IdType,
-	    .TxFrameType = FDCAN_DATA_FRAME, /* data frame only */
-	    .DataLength = FDCAN_DLC_BYTES_8, /* classical CAN */
-	    .ErrorStateIndicator = FDCAN_ESI_ACTIVE,
-	    .BitRateSwitch = FDCAN_BRS_OFF,
-	    .FDFormat = FDCAN_CLASSIC_CAN,
-	    .TxEventFifoControl = FDCAN_NO_TX_EVENTS,
-	    .MessageMarker = 0,
-	};
-
-	return HAL_FDCAN_AddMessageToTxFifoQ(inst->hfdcan, &header, buff);
+	assert(inst != NULL && inst->hfdcan != NULL);
+	inst->header.Identifier = id;
 }
 
 /**

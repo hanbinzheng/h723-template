@@ -56,6 +56,14 @@ struct can_tx_inst *can_register_tx(const struct can_tx_config *config);
 HAL_StatusTypeDef can_start(void);
 
 /**
+ * @brief set the tx id
+ *
+ * @param inst: Pointer to can tx instance
+ * @param id: new id
+ */
+void can_set_tx_id(struct can_tx_inst *inst, uint32_t id);
+
+/**
  * @brief can_transmit() - Transmit a CAN message
  *
  * Transmits a classical CAN message using the specified FDCAN peripheral.
@@ -67,19 +75,5 @@ HAL_StatusTypeDef can_start(void);
  * @return HAL_OK on success, HAL_ERROR otherwise.
  */
 HAL_StatusTypeDef can_transmit(const struct can_tx_inst *inst, const uint8_t *buff);
-
-/**
- * @brief can_transmit_dynamic() - Transmit a CAN message with dynamic tx id
- *
- * Transmits with dynamic tx id
- *
- * @param inst: Pointer to can tx instance
- * @param id_dynamic: dynamic id (the id of this transmission)
- * @param buff: Pointer to 8-byte data buffer to transmit
- *
- * @return HAL_OK on success, HAL_ERROR otherwise.
- */
-HAL_StatusTypeDef can_transmit_dynamic(const struct can_tx_inst *inst, uint32_t id_dynamic,
-				       const uint8_t *buff);
 
 #endif /* BSP_FDCAN_H_ */
