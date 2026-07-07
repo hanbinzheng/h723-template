@@ -7,11 +7,9 @@ This telemetry suite utilizes the ARM Cortex-M background DAP (Debug Access Port
 
 We divide the RTT upstream pipes into two dedicated channels:
 
-We use the RTT upstream channel 1 to pipes raw IEEE-754 binary float packets to TCP port ~9001~ (JustFloat format).
+We use the RTT upstream channel 1 to pipes float packets (via FireWater format) to TCP port ~9001~.
 
 * II. API Reference
-
-The VOFA+ telemetry driver is designed for extreme efficiency, bypassing typical run-time variable argument parsing overhead by leveraging compile-time static array initialization.
 
 *** 1. ~vofa_init()~
 Initializes and binds a static 2048-byte RAM ring buffer to RTT Up-Buffer Channel 1.
@@ -19,7 +17,7 @@ Initializes and binds a static 2048-byte RAM ring buffer to RTT Up-Buffer Channe
 Return: ~VOFA_SUCCESS (0)~ on success, ~VOFA_FAILURE (-1)~ on failure.
 
 *** 2. ~vofa_send(...)~
-A reflective macro that accepts any number of arguments. It automatically deduces the parameter count, handles implicit single-precision float conversion, writes binary buffers, and appends the standard JustFloat frame tail (~0x00 0x00 0x80 0x7F~).
+A reflective macro that accepts any number of arguments. Under the wireless Daplink, the transmission density should be less than 1000 float / s. For example, if you transmit 2 float numbers a time, the sampling frequency should be no more than 500 hz.
 
 * III. Quick Start & Usage Example
 To stream telemetry, call ~vofa_init()~ once during the board's startup phase, and feed variables to ~vofa_send(...)~ inside your control loop:
@@ -52,15 +50,19 @@ Low-Level Hex Stream Verification
 If you suspect transmission errors, you can bypass VOFA+ and inspect the raw binary stream directly from your Mac terminal using a Netcat pipeline paired with a hex dumper:
 
 #+begin_src bash
-nc localhost 9001 | xxd
+nc localhost 9001
 #+end_src
 
-You should observe contiguous blocks of 4-byte single-precision floats terminated by the constant NaN frame-end identifier:
+You should observe contiguous float numbers in the format:
+
 
 #+begin_src text
-00000000: 0000 c842 0000 0000 0000 807f..........
-          ^-------^ ^-------^ ^-------^
-           Float 1    Float 2  JustFloat Tail (0x7F800000 / NaN)
+float1,float2,float3,float4.....
+#+end_src
+
+#+begin_src text
+32.117599,61.286533
+7.695588,42.959796
 #+end_src
 
 * IV. VOFA+ Upper Monitor Configuration
@@ -75,7 +77,7 @@ Open your VOFA+ software and follow these configurations to map the binary netwo
 
 Data Interface: ~TCP Client~
 
-Data Engine: ~JustFloat~
+Data Engine: ~FireWater~
 
 Server IP: ~127.0.0.1~ (localhost)
 
