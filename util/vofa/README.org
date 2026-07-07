@@ -24,7 +24,7 @@ To stream telemetry, call ~vofa_init()~ once during the board's startup phase, a
 
 #+begin_src c
 #include "bsp_dwt.h"
-#include "util_vofa.h"
+#include "vofa.h"
 
 int main(void)
 {

@@ -22,7 +22,7 @@ All logging outputs are directed to *RTT Channel 0* (forwarded by OpenOCD to ~lo
 Include the header and invoke the macros directly inside your firmware files:
 
 #+begin_src c
-#include "util_log.h"
+#include "log.h"
 
 void Motor_Init(void) {
     LOG_INFO("Chassis CAN motors initializing...");
