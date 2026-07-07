@@ -1,5 +1,5 @@
-#ifndef UTIL_LOG_H_
-#define UTIL_LOG_H_
+#ifndef LOG_H_
+#define LOG_H_
 
 #define LOG_RTT_CHANNEL (0)
 
@@ -21,4 +21,4 @@
 						   "\r\n",                                         \
 			  __FILE_NAME__, __LINE__, ##__VA_ARGS__)
 
-#endif /* UTIL_LOG_H_ */
+#endif /* LOG_H_ */

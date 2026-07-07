@@ -1,5 +1,5 @@
-#ifndef UTIL_VOFA_H_
-#define UTIL_VOFA_H_
+#ifndef VOFA_H_
+#define VOFA_H_
 
 #include "SEGGER_RTT.h"
 #include <math.h>
@@ -60,8 +60,7 @@ static char *_fill_integer_part(char *p, uint32_t val)
  *
  * This macro leverages C99 compound literals to initialize an array of
  * floats at compile-time. It automatically computes the argument count
- * and writes the raw binary stream followed by the JustFloat tail to
- * the target RTT channel.
+ * and writes the float number stream to the target RTT channel through the FireWater protocol.
  *
  * @note the printing frequency should not be larger than 800 float / s.
  *	Otherwise, it will trigger inaccuracy either in vofa or in RTT transmission.
@@ -109,4 +108,4 @@ static char *_fill_integer_part(char *p, uint32_t val)
  */
 enum vofa_state vofa_init(void);
 
-#endif /* UTIL_VOFA_H_ */
+#endif /* VOFA_H_ */
