@@ -1,4 +1,4 @@
-#include "util_vofa.h"
+#include "vofa.h"
 
 #define VOFA_BUFFER_SIZE (2048)
 

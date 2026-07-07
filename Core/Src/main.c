@@ -42,8 +42,8 @@
 #include "sbus.h"
 #include "ws2812.h"
 
-#include "util_log.h"
-#include "util_vofa.h"
+#include "log.h"
+#include "vofa.h"
 
 /* USER CODE END Includes */
 
@@ -86,6 +86,8 @@ struct can_tx_inst *can3_tx = NULL;
 int16_t vel, pos, eff;
 HAL_StatusTypeDef start = HAL_BUSY;
 HAL_StatusTypeDef tx = HAL_ERROR;
+uint64_t cnt = 0;
+uint8_t ms = 5;
 
 const struct sbus_data *sbus = NULL;
 
@@ -125,6 +127,7 @@ void fdcan3_callback(struct can_rx_inst *inst, uint8_t *rx_buff)
 	pos = (int16_t)(((rx_buff[0] << 8) | rx_buff[1]) & 0xFFFF);
 	vel = (int16_t)(((rx_buff[2] << 8) | rx_buff[3]) & 0xFFFF);
 	eff = (int16_t)(((rx_buff[4] << 8) | rx_buff[5]) & 0xFFFF);
+	cnt++;
 }
 
 void bsp_init()
@@ -137,14 +140,14 @@ void bsp_init()
 	    .hfdcan = &hfdcan3,
 	    .callback = fdcan3_callback,
 	    .mask = 0x7FF,
-	    .id = 0x208,
+	    .id = 0x201,
 	    .type = CAN_STANDARD,
 	};
 	can3_rx = can_register_rx(&fdcan3_config);
 
 	struct can_tx_config fdcan3_tx_config = {
 	    .hfdcan = &hfdcan3,
-	    .id = 0x1FF,
+	    .id = 0x200,
 	    .type = CAN_STANDARD,
 	};
 	can3_tx = can_register_tx(&fdcan3_tx_config);
@@ -268,7 +271,7 @@ int main(void)
 	LOG_DEBUG("========================================");	 /* for yellow color */
 	LOG_ERROR("FUCKING ROBOMASTER STM32 RTT Terminal Test"); /* for red color */
 	LOG_DEBUG("========================================");	 /* for yellow color */
-	uint32_t loop_counter = 0;
+	// uint32_t loop_counter = 0;
 
 	float target = 0.0f;
 	float actual = 0.0f;
@@ -300,13 +303,18 @@ int main(void)
 		// dwt_delay_ms(1);
 		// uint8_t tx_buff[8] = {0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00};
 		// can_transmit(can3, tx_buff);
-		LOG_INFO("Loop running, count = %d", loop_counter++);
-
+		// LOG_INFO("Loop running, count = %d", loop_counter++);
+		// cnt++;
 		target = 100.0f * __builtin_sinf(time_ticks);
 		actual += (target - actual) * 0.1f;
 		time_ticks += 0.05f;
-		vofa_send(target, actual);
-		dwt_delay_ms(10);
+		dwt_delay_ms(1);
+		// vofa_send(target, actual);
+		// uint8_t buff[8] = {0x01, 0x00, 0x04, 0x00, 0x02, 0x00, 0x02, 0x00};
+		// can_transmit(can3_tx, buff);
+		// dwt_delay_ms(1);
+		// LOG_INFO("FUCK");
+		// buzzer_play_song(ODE_TO_JOY);
 	}
 	/* USER CODE END 3 */
 }

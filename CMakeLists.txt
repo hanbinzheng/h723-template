@@ -61,7 +61,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     device/sbus/sbus.c
     device/ws2812/ws2812.c
 
-    util/vofa/util_vofa.c
+    util/vofa/vofa.c
 )
 
 # Add include paths
