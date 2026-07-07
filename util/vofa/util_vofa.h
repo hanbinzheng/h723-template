@@ -7,6 +7,7 @@
 
 /* RTT channel 1 */
 #define VOFA_RTT_CHANNEL (1)
+#define VOFA_DECIMAL_DIGITS (6)
 
 enum vofa_state {
 	VOFA_FAILURE = -1,
@@ -87,7 +88,7 @@ static char *_fill_integer_part(char *p, uint32_t val)
                                                                                                    \
 			_p = _fill_integer_part(_p, _integ);                                       \
 			*_p++ = '.';                                                               \
-			_p = _fill_decimal_part(_p, _frac, 6);                                     \
+			_p = _fill_decimal_part(_p, _frac, VOFA_DECIMAL_DIGITS);                   \
                                                                                                    \
 			if (_i < _num - 1) {                                                       \
 				*_p++ = ',';                                                       \
