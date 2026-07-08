@@ -11,8 +11,8 @@
 #define FILTER_MATCHING 0
 #define FILTER_NOT_MATCHING 1
 
-#define IDX_IN_RANGE(id_type, idx)                                                                 \
-	((id_type) == FDCAN_STANDARD_ID ? (idx) < CAN_RXINST_STD_MAX : (idx) < CAN_RXINST_EXT_MAX)
+#define IDX_IN_RANGE(id_type, canbus, idx)                                                         \
+	((id_type) == FDCAN_STANDARD_ID ? (idx) < (canbus)->rxidx_std : (idx) < (canbus)->rxidx_ext)
 #define GET_INST_BUFF(canbus, id_type)                                                             \
 	((id_type) == FDCAN_STANDARD_ID ? (canbus)->rxinst_std : (canbus)->rxinst_ext)
 
@@ -247,7 +247,7 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 		struct can_rx_inst *inst = NULL;
 		if (header.IsFilterMatchingFrame == FILTER_MATCHING) {
 			struct can_rx_inst *inst_buff = GET_INST_BUFF(canbus, header.IdType);
-			if (IDX_IN_RANGE(header.IdType, header.FilterIndex)) {
+			if (IDX_IN_RANGE(header.IdType, canbus, header.FilterIndex)) {
 				inst = inst_buff + header.FilterIndex;
 			}
 		}
