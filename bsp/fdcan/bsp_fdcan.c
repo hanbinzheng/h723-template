@@ -12,9 +12,10 @@
 #define FILTER_NOT_MATCHING 1
 
 #define IDX_IN_RANGE(id_type, canbus, idx)                                                         \
-	((id_type) == FDCAN_STANDARD_ID ? (idx) < (canbus)->rxidx_std : (idx) < (canbus)->rxidx_ext)
+	((id_type) == FDCAN_STANDARD_ID ? (idx) < (canbus)->rx_cnt_std                             \
+					: (idx) < (canbus)->rx_cnt_ext)
 #define GET_INST_BUFF(canbus, id_type)                                                             \
-	((id_type) == FDCAN_STANDARD_ID ? (canbus)->rxinst_std : (canbus)->rxinst_ext)
+	((id_type) == FDCAN_STANDARD_ID ? (canbus)->rx_inst_std : (canbus)->rx_inst_ext)
 
 struct can_rx_inst {
 	FDCAN_HandleTypeDef *hfdcan;
@@ -35,14 +36,14 @@ struct can_bus {
 	FDCAN_HandleTypeDef *hfdcan;
 
 	/* rx inst: standard and extended */
-	uint8_t rxidx_std;
-	uint8_t rxidx_ext;
-	struct can_rx_inst rxinst_std[CAN_RXINST_STD_MAX];
-	struct can_rx_inst rxinst_ext[CAN_RXINST_EXT_MAX];
+	uint8_t rx_cnt_std;
+	uint8_t rx_cnt_ext;
+	struct can_rx_inst rx_inst_std[CAN_RXINST_STD_MAX];
+	struct can_rx_inst rx_inst_ext[CAN_RXINST_EXT_MAX];
 
 	/* tx inst */
-	uint8_t txidx;
-	struct can_tx_inst txinst[CAN_TXINST_MAX];
+	uint8_t tx_cnt;
+	struct can_tx_inst tx_inst[CAN_TXINST_MAX];
 };
 
 /* static variables and helper functions */
@@ -116,9 +117,9 @@ struct can_rx_inst *can_register_rx(const struct can_rx_config *config)
 
 	/* update canbus index */
 	if (config->type == CAN_STANDARD) {
-		canbus->rxidx_std++;
+		canbus->rx_cnt_std++;
 	} else {
-		canbus->rxidx_ext++;
+		canbus->rx_cnt_ext++;
 	}
 
 	return inst;
@@ -138,18 +139,18 @@ struct can_tx_inst *can_register_tx(const struct can_tx_config *config)
 
 	/* get tx inst */
 	struct can_tx_inst *inst = NULL;
-	if (canbus->txidx >= CAN_TXINST_MAX) {
+	if (canbus->tx_cnt >= CAN_TXINST_MAX) {
 		return NULL;
 	} else {
-		for (uint8_t i = 0; i < canbus->txidx; i++) {
-			struct can_tx_inst *tmp = canbus->txinst + i;
+		for (uint8_t i = 0; i < canbus->tx_cnt; i++) {
+			struct can_tx_inst *tmp = canbus->tx_inst + i;
 			if (tmp->header.IdType == config->type &&
 			    tmp->header.Identifier == config->id) {
 				return tmp; /* check repetition */
 			}
 		}
-		inst = canbus->txinst + canbus->txidx;
-		canbus->txidx++;
+		inst = canbus->tx_inst + canbus->tx_cnt;
+		canbus->tx_cnt++;
 	}
 
 	/* configure data */
@@ -264,25 +265,25 @@ static struct can_rx_inst *get_rx_inst(struct can_bus *canbus, const struct can_
 	struct can_rx_inst *inst = NULL;
 
 	if (config->type == CAN_STANDARD) {
-		if (canbus->rxidx_std >= CAN_RXINST_STD_MAX) {
+		if (canbus->rx_cnt_std >= CAN_RXINST_STD_MAX) {
 			return NULL; /* exceed maximum number */
 		}
-		for (uint8_t i = 0; i < canbus->rxidx_std; i++) {
-			if (canbus->rxinst_std[i].id == config->id) {
+		for (uint8_t i = 0; i < canbus->rx_cnt_std; i++) {
+			if (canbus->rx_inst_std[i].id == config->id) {
 				return NULL; /* check repetition */
 			}
 		}
-		inst = canbus->rxinst_std + canbus->rxidx_std;
+		inst = canbus->rx_inst_std + canbus->rx_cnt_std;
 	} else {
-		if (canbus->rxidx_ext >= CAN_RXINST_EXT_MAX) {
+		if (canbus->rx_cnt_ext >= CAN_RXINST_EXT_MAX) {
 			return NULL;
 		}
-		for (uint8_t i = 0; i < canbus->rxidx_ext; i++) {
-			if (canbus->rxinst_ext[i].id == config->id) {
+		for (uint8_t i = 0; i < canbus->rx_cnt_ext; i++) {
+			if (canbus->rx_inst_ext[i].id == config->id) {
 				return NULL;
 			}
 		}
-		inst = canbus->rxinst_ext + canbus->rxidx_ext;
+		inst = canbus->rx_inst_ext + canbus->rx_cnt_ext;
 	}
 
 	return inst;
@@ -310,10 +311,10 @@ static HAL_StatusTypeDef add_filter(struct can_bus *canbus, const struct can_rx_
 	 */
 	if (config->type == CAN_STANDARD) {
 		filter.IdType = FDCAN_STANDARD_ID;
-		filter.FilterIndex = canbus->rxidx_std;
+		filter.FilterIndex = canbus->rx_cnt_std;
 	} else {
 		filter.IdType = FDCAN_EXTENDED_ID;
-		filter.FilterIndex = canbus->rxidx_ext;
+		filter.FilterIndex = canbus->rx_cnt_ext;
 	}
 
 	/*
