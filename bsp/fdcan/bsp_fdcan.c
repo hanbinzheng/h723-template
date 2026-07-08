@@ -1,5 +1,4 @@
 #include "bsp_fdcan.h"
-#include "hash.h"
 #include <assert.h>
 
 #define CAN_BUS_NUM 3	      /* 3 FDCAN peripherals in total */
@@ -7,6 +6,15 @@
 #define CAN_TXINST_MAX 8      /* actually unlimited, but 8 is enough and simple */
 #define CAN_RXINST_STD_MAX 16 /* as configured in cubemx, for a signle bus */
 #define CAN_RXINST_EXT_MAX 8  /* as configured in cubemx, for a single bus */
+
+/* check FDCAN_RxHeaderTypeDef.IsFilterMatchingFrame in stm32h7xx_hal_fdcan.h */
+#define FILTER_MATCHING 0
+#define FILTER_NOT_MATCHING 1
+
+#define IDX_IN_RANGE(id_type, idx)                                                                 \
+	((id_type) == FDCAN_STANDARD_ID ? (idx) < CAN_RXINST_STD_MAX : (idx) < CAN_RXINST_EXT_MAX)
+#define GET_INST_BUFF(canbus, id_type)                                                             \
+	((id_type) == FDCAN_STANDARD_ID ? (canbus)->rxinst_std : (canbus)->rxinst_ext)
 
 struct can_rx_inst {
 	FDCAN_HandleTypeDef *hfdcan;
@@ -25,7 +33,6 @@ struct can_tx_inst {
 struct can_bus {
 	uint8_t bus_idx; /* which canbus */
 	FDCAN_HandleTypeDef *hfdcan;
-	struct hash_table table; /* rx id -> callback function */
 
 	/* rx inst: standard and extended */
 	uint8_t rxidx_std;
@@ -62,7 +69,6 @@ static struct can_bus *config_canbus(FDCAN_HandleTypeDef *hfdcan)
 		if (canbus->hfdcan == NULL) {
 			canbus->bus_idx = i;
 			canbus->hfdcan = hfdcan;
-			hash_init(&(canbus->table));
 			return canbus;
 		}
 	}
@@ -107,7 +113,6 @@ struct can_rx_inst *can_register_rx(const struct can_rx_config *config)
 	inst->id = config->id;
 	inst->hfdcan = config->hfdcan;
 	inst->callback = config->callback;
-	hash_insert(&(canbus->table), inst->id, (uint32_t)inst);
 
 	/* update canbus index */
 	if (config->type == CAN_STANDARD) {
@@ -178,8 +183,8 @@ HAL_StatusTypeDef can_start(void)
 		/* the following three functions only returns HAL_OK or HAL_ERROR */
 
 		/* configure the global filter */
-		if (HAL_FDCAN_ConfigGlobalFilter(canbus->hfdcan, FDCAN_ACCEPT_IN_RX_FIFO0,
-						 FDCAN_ACCEPT_IN_RX_FIFO0, FDCAN_REJECT_REMOTE,
+		if (HAL_FDCAN_ConfigGlobalFilter(canbus->hfdcan, FDCAN_REJECT, FDCAN_REJECT,
+						 FDCAN_REJECT_REMOTE,
 						 FDCAN_REJECT_REMOTE) != HAL_OK) {
 			ret = HAL_ERROR;
 		}
@@ -229,21 +234,26 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 {
 	if (RxFifo0ITs & FDCAN_IT_RX_FIFO0_NEW_MESSAGE) {
 		FDCAN_RxHeaderTypeDef header;
-		uint8_t rx_buff[CAN_DATA_LENGTH];
+		uint8_t buff[CAN_DATA_LENGTH];
 		struct can_bus *canbus = get_canbus(hfdcan);
 		if (canbus == NULL)
 			return;
 
-		if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &header, rx_buff) != HAL_OK) {
+		if (HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &header, buff) != HAL_OK) {
 			return; /* fails to get message */
 		}
 
-		uint32_t val = 0;
-		if (hash_lookup(&(canbus->table), header.Identifier, &val)) {
-			struct can_rx_inst *inst = (struct can_rx_inst *)val;
-			if (inst != NULL) {
-				inst->callback(inst, rx_buff);
+		/* get rx inst */
+		struct can_rx_inst *inst = NULL;
+		if (header.IsFilterMatchingFrame == FILTER_MATCHING) {
+			struct can_rx_inst *inst_buff = GET_INST_BUFF(canbus, header.IdType);
+			if (IDX_IN_RANGE(header.IdType, header.FilterIndex)) {
+				inst = inst_buff + header.FilterIndex;
 			}
+		}
+
+		if (inst != NULL && inst->callback != NULL) {
+			inst->callback(inst, buff);
 		}
 	}
 }

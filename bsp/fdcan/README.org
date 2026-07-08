@@ -11,7 +11,7 @@ This library provides a hardware abstraction for the =STM32H7 FDCAN= peripheral 
 struct can_rx_inst *can_register_rx(const struct can_rx_config *config);
 #+END_SRC
 
-Registers an RX instance to a physical =FDCAN= peripheral. It provisions an entry inside the Message RAM filtering segment, inserts the entry into the internal hash table mapping for fast runtime ISR routing, and returns a pointer to the generated RX instance.
+Registers an RX instance to a physical =FDCAN= peripheral. It provisions an entry inside the Message RAM filtering segment and returns a pointer to the generated RX instance.
 
 For a single =FDCAN= peripheral, you can register a maximum of 16 standard and 8 extended RX instances.
 
