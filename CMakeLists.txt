@@ -47,6 +47,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
     algorithm/crc/crc.c
     algorithm/hash/hash.c
+    algorithm/pid/pid.c
 
     bsp/dwt/bsp_dwt.c
     bsp/fdcan/bsp_fdcan.c
@@ -59,6 +60,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     device/buzzer/buzzer.c
     device/dbus/dbus.c
     device/sbus/sbus.c
+    device/motor/motor.c
     device/ws2812/ws2812.c
 
     util/vofa/vofa.c
@@ -69,6 +71,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
     algorithm/crc
     algorithm/hash
+    algorithm/pid
 
     bsp/dwt
     bsp/fdcan
@@ -80,6 +83,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
 
     device/buzzer
     device/dbus
+    device/motor
     device/sbus
     device/ws2812
 
