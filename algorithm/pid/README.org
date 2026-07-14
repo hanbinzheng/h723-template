@@ -47,9 +47,11 @@ $$e(t) = r(t) - m(t)$$
 Where $r(t)$ is the reference (target) and $m(t)$ is the measurement (feedback).
 
 ** (2) Standard PID Components
-- *Proportional*: $P_{out} = K_p \cdot e(t)$
-- *Integral*: $I_{out} = limit \left( \sum K_i \cdot e(t), \pm I_{limit} \right)$
-- *Derivative*: $D_{out} = K_d \cdot (e(t) - e(t-1))$
+$$P_{out} = K_p \cdot e(t)$$
+
+$$I_{out} = limit \left( \sum K_i \cdot e(t), \pm I_{limit} \right)$$
+
+$$D_{out} = K_d \cdot (e(t) - e(t-1))$$
 
 ** (3) Combined Output Rule
 $$\text{Output} = \text{limit}\left(P_{\text{out}} + I_{\text{out}} + D_{\text{out}} + \text{sign}(r(t)) \cdot F_{\text{ff}} + L \cdot r(t), \pm \text{Out}_{\text{limit}}\right)$$
