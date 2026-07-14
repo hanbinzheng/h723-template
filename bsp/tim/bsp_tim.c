@@ -6,10 +6,24 @@ struct tim_inst {
 	enum tim_mode mode;
 	uint32_t clk_freq;
 	uint32_t channel;
+	tim_callback callback;
 };
 
 static struct tim_inst tim_inst[TIM_INST_MAX_NUM];
 static uint8_t idx = 0;
+
+__ALWAYS_INLINE
+static struct tim_inst *get_tim_inst(TIM_HandleTypeDef *htim)
+{
+	/* TODO: use hash table instead in future. Now, only 5 instance.*/
+	for (uint8_t i = 0; i < TIM_INST_MAX_NUM; i++) {
+		if (tim_inst[i].htim == htim) {
+			return (tim_inst + i);
+		}
+	}
+
+	return NULL; /* fail to find */
+}
 
 struct tim_inst *tim_register(const struct tim_config *config)
 {
@@ -28,6 +42,7 @@ struct tim_inst *tim_register(const struct tim_config *config)
 	inst->mode = config->mode;
 	inst->clk_freq = config->clk_freq;
 	inst->channel = config->channel;
+	inst->callback = config->callback;
 
 	switch (inst->mode) {
 	case TIM_INTERRUPT_MODE:
@@ -78,4 +93,14 @@ HAL_StatusTypeDef tim_set_pwm(struct tim_inst *inst, uint16_t pwm_freq, float pw
 	__HAL_TIM_SET_COMPARE(htim, inst->channel, (uint16_t)(arr * pwm_duty));
 
 	return HAL_OK;
+}
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	struct tim_inst *inst = get_tim_inst(htim);
+	if (inst != NULL && inst->mode == TIM_INTERRUPT_MODE) {
+		if (inst->callback != NULL) {
+			inst->callback();
+		}
+	}
 }
