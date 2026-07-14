@@ -67,31 +67,30 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-uint8_t r, g, b;
-float time = 0.0f;
-uint32_t volatile diff = 0;
 int usart5_cnt = 0;
 int usart5_len = 0;
 int usart10_cnt = 0;
 int usart10_len = 0;
-uint8_t fdcan3_buff[8] = {0};
 
 struct spi_inst *spi6 = NULL;
 struct tim_inst *tim12 = NULL;
 struct usart_inst *usart5 = NULL;
 struct usart_inst *usart7 = NULL;
 struct usart_inst *usart10 = NULL;
-struct can_rx_inst *can3_rx = NULL;
-struct can_tx_inst *can3_tx = NULL;
-int16_t vel, pos, eff;
-HAL_StatusTypeDef start = HAL_BUSY;
-HAL_StatusTypeDef tx = HAL_ERROR;
-uint64_t cnt = 0;
-uint8_t ms = 5;
+struct can_rx_inst *gm6020_1 = NULL;
+struct can_rx_inst *gm6020_2 = NULL;
+struct can_tx_inst *gm6020_tx = NULL;
 
 const struct sbus_data *sbus = NULL;
 
-struct hash_table table;
+struct gm6020 {
+	int16_t pos;
+	int16_t vel;
+	int16_t eff;
+};
+
+struct gm6020 motor1, motor2;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -121,13 +120,21 @@ void usart10_callback(uint8_t *rx_buff, uint16_t len)
 	usart10_len = len;
 }
 
-void fdcan3_callback(struct can_rx_inst *inst, uint8_t *rx_buff)
+void fdcan1_callback(struct can_rx_inst *inst, uint8_t *rx_buff)
 {
-	memcpy(fdcan3_buff, rx_buff, 8);
-	pos = (int16_t)(((rx_buff[0] << 8) | rx_buff[1]) & 0xFFFF);
-	vel = (int16_t)(((rx_buff[2] << 8) | rx_buff[3]) & 0xFFFF);
-	eff = (int16_t)(((rx_buff[4] << 8) | rx_buff[5]) & 0xFFFF);
-	cnt++;
+	int16_t pos = (int16_t)(((rx_buff[0] << 8) | rx_buff[1]) & 0xFFFF);
+	int16_t vel = (int16_t)(((rx_buff[2] << 8) | rx_buff[3]) & 0xFFFF);
+	int16_t eff = (int16_t)(((rx_buff[4] << 8) | rx_buff[5]) & 0xFFFF);
+
+	if (inst == gm6020_1) {
+		motor1.pos = pos;
+		motor1.vel = vel;
+		motor1.eff = eff;
+	} else if (inst == gm6020_2) {
+		motor2.pos = pos;
+		motor2.vel = vel;
+		motor2.eff = eff;
+	}
 }
 
 void bsp_init()
@@ -136,23 +143,32 @@ void bsp_init()
 	dwt_init(MCU_MAIN_FREQ);
 
 	/* fdcan config */
-	struct can_rx_config fdcan3_config = {
-	    .hfdcan = &hfdcan3,
-	    .callback = fdcan3_callback,
+	struct can_rx_config gm6020_config_1 = {
+	    .hfdcan = &hfdcan1,
+	    .callback = fdcan1_callback,
 	    .mask = 0x7FF,
-	    .id = 0x201,
+	    .id = 0x205,
 	    .type = CAN_STANDARD,
 	};
-	can3_rx = can_register_rx(&fdcan3_config);
+	gm6020_1 = can_register_rx(&gm6020_config_1);
 
-	struct can_tx_config fdcan3_tx_config = {
-	    .hfdcan = &hfdcan3,
-	    .id = 0x200,
+	struct can_rx_config gm6020_config_2 = {
+	    .hfdcan = &hfdcan1,
+	    .callback = fdcan1_callback,
+	    .mask = 0x7FF,
+	    .id = 0x206,
 	    .type = CAN_STANDARD,
 	};
-	can3_tx = can_register_tx(&fdcan3_tx_config);
+	gm6020_2 = can_register_rx(&gm6020_config_2);
 
-	start = can_start();
+	struct can_tx_config gm6020_config_tx = {
+	    .hfdcan = &hfdcan1,
+	    .id = 0x1FF,
+	    .type = CAN_STANDARD,
+	};
+	gm6020_tx = can_register_tx(&gm6020_config_tx);
+
+	can_start();
 
 	/* spi config */
 	struct spi_config spi6_config = {
@@ -257,25 +273,18 @@ int main(void)
 	MX_FDCAN2_Init();
 	MX_FDCAN3_Init();
 	/* USER CODE BEGIN 2 */
-	uint32_t tmp = 0;
-	hash_init(&table);
-	hash_insert(&table, 0, 0);
-	hash_lookup(&table, 0, &tmp);
-	hash_remove(&table, 0);
 	bsp_init();
 	device_init();
 	vofa_init();
 
-	buzzer_ctrl(4000, 50, 0.5);
-
 	LOG_DEBUG("========================================");	 /* for yellow color */
 	LOG_ERROR("FUCKING ROBOMASTER STM32 RTT Terminal Test"); /* for red color */
 	LOG_DEBUG("========================================");	 /* for yellow color */
-	// uint32_t loop_counter = 0;
 
-	float target = 0.0f;
-	float actual = 0.0f;
-	float time_ticks = 0.0f;
+	buzzer_ctrl(4000, 50, 0.5);
+	// float target = 0.0f;
+	// float actual = 0.0f;
+	// float time_ticks = 0.0f;
 
 	/* USER CODE END 2 */
 
@@ -285,36 +294,15 @@ int main(void)
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
-		// ws2812_ctrl(r, g, b);
-		// r++;
-		// g += 5;
-		// b += 10;
-		// dwt_delay_ms(1);
-		// r++;
-		// g++;
-		// b++;
-		// dwt_delay_ms(100);
-		// buzzer_play_song(ODE_TO_JOY);
-		// uint32_t volatile before = DWT->CYCCNT;
-		// dwt_delay_ms(1);
-		// uint32_t volatile after = DWT->CYCCNT;
-		// diff = after - before;
-		// cnt++;
-		// dwt_delay_ms(1);
-		// uint8_t tx_buff[8] = {0x20, 0x00, 0x20, 0x00, 0x20, 0x00, 0x20, 0x00};
-		// can_transmit(can3, tx_buff);
-		// LOG_INFO("Loop running, count = %d", loop_counter++);
-		// cnt++;
-		target = 100.0f * __builtin_sinf(time_ticks);
-		actual += (target - actual) * 0.1f;
-		time_ticks += 0.05f;
+		// target = 100.0f * __builtin_sinf(time_ticks);
+		// actual += (target - actual) * 0.1f;
+		// time_ticks += 0.05f;
+		// dwt_delay_ms(10);
+		// vofa_send(target, actual, 0.0f);
+		uint8_t buff[8] = {0x05, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00};
+		can_transmit(gm6020_tx, buff);
+		LOG_INFO("FUCK");
 		dwt_delay_ms(1);
-		// vofa_send(target, actual);
-		// uint8_t buff[8] = {0x01, 0x00, 0x04, 0x00, 0x02, 0x00, 0x02, 0x00};
-		// can_transmit(can3_tx, buff);
-		// dwt_delay_ms(1);
-		// LOG_INFO("FUCK");
-		// buzzer_play_song(ODE_TO_JOY);
 	}
 	/* USER CODE END 3 */
 }
