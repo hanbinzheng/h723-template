@@ -46,7 +46,7 @@ struct can_rx_inst *can_register_rx(const struct can_rx_config *config);
 struct can_tx_inst *can_register_tx(const struct can_tx_config *config);
 
 /**
- * Function to complete the final configuration and start fdcan peripheral
+ * @brief Function to complete the final configuration and start fdcan peripheral
  *
  * configure the global filter, open the rx interrupt and start the fdcan peripheral
  * @note this function should be called after all configuration by can_rx_register()
@@ -56,6 +56,22 @@ struct can_tx_inst *can_register_tx(const struct can_tx_config *config);
 HAL_StatusTypeDef can_start(void);
 
 /**
+ * @brief combine user data to a can instance
+ *
+ * @param inst can rx inst
+ * @param data pointer to the user data
+ */
+void can_set_user_data(struct can_rx_inst *inst, const void *user_data);
+
+/**
+ * @brief get user data
+ *
+ * @param inst can rx inst
+ * @return pointer to the user data
+ */
+void *can_get_user_data(const struct can_rx_inst *inst);
+
+/*isnt*
  * @brief set the tx id
  *
  * @param inst: Pointer to can tx instance

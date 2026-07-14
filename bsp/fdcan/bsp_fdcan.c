@@ -20,6 +20,7 @@
 struct can_rx_inst {
 	FDCAN_HandleTypeDef *hfdcan;
 	uint32_t id;
+	void *user_data;
 	can_rx_callback callback;
 };
 
@@ -201,6 +202,22 @@ HAL_StatusTypeDef can_start(void)
 	}
 
 	return ret;
+}
+
+void can_set_user_data(struct can_rx_inst *inst, const void *user_data)
+{
+	if (inst != NULL) {
+		inst->user_data = (void *)user_data;
+	}
+}
+
+void *can_get_user_data(const struct can_rx_inst *inst)
+{
+	if (inst != NULL) {
+		return inst->user_data;
+	} else {
+		return NULL;
+	}
 }
 
 HAL_StatusTypeDef can_transmit(const struct can_tx_inst *inst, const uint8_t *buff)

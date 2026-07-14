@@ -32,6 +32,13 @@ Finalizes the peripheral configurations. Must be called after all RX configurati
 This configures global rejection filters, activates the hardware =RxFIFO0= notifications/interrupts, and transitions all allocated =FDCAN= peripherals into operational hardware mode.
 
 #+BEGIN_SRC c
+void can_set_user_data(struct can_rx_inst *inst, const void *user_data);
+void *can_get_user_data(const struct can_rx_inst *inst);
+#+END_SR
+
+Function to set and get user data. You can use this api to get your user data in callback function.
+
+#+BEGIN_SRC c
 void can_set_tx_id(struct can_tx_inst *inst, uint32_t id);
 #+END_SRC
 
