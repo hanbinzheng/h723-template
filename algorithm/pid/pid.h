@@ -9,6 +9,10 @@ struct pid_info {
 	float i_limit;
 	float out_limit;
 
+	/* output += linear * reference + feed_forward */
+	float linear;
+	float feed_forward;
+
 	float reference;
 	float measure;
 	float error;
