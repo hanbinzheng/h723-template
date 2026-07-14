@@ -68,7 +68,6 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-uint32_t cnt;
 struct spi_inst *spi6 = NULL;
 struct tim_inst *tim5 = NULL;
 struct tim_inst *tim12 = NULL;
@@ -96,11 +95,6 @@ void usart5_callback(uint8_t *rx_buff, uint16_t len)
 	}
 }
 
-void tim5_callback(void)
-{
-	cnt++;
-}
-
 void bsp_init()
 {
 	/* dwt config */
@@ -118,7 +112,7 @@ void bsp_init()
 	struct tim_config tim5_config = {
 	    .htim = &htim5,
 	    .mode = TIM_INTERRUPT_MODE,
-	    .callback = tim5_callback,
+	    .callback = motor_set_command,
 	};
 	struct tim_config tim12_config = {
 	    .htim = &htim12,
