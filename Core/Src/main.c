@@ -21,6 +21,7 @@
 #include "dma.h"
 #include "fdcan.h"
 #include "gpio.h"
+#include "iwdg.h"
 #include "spi.h"
 #include "tim.h"
 #include "usart.h"
@@ -92,6 +93,11 @@ void usart5_callback(uint8_t *rx_buff, uint16_t len)
 {
 	if (len == SBUS_FRAME_LENGTH) {
 		sbus_update(rx_buff);
+
+		/* if get data and data is safe, feed the dog */
+		if (sbus_get_data()->safe == SBUS_SAFE) {
+			HAL_IWDG_Refresh(&hiwdg1);
+		}
 	}
 }
 
@@ -193,6 +199,7 @@ int main(void)
 	MX_FDCAN2_Init();
 	MX_FDCAN3_Init();
 	MX_TIM5_Init();
+	MX_IWDG1_Init();
 	/* USER CODE BEGIN 2 */
 	bsp_init();
 	device_init();
@@ -222,9 +229,7 @@ int main(void)
 		// time_ticks += 0.05f;
 		// dwt_delay_ms(10);
 		// vofa_send(target, actual, 0.0f);
-		sbus = sbus_get_data();
-		LOG_INFO("FUCK");
-		dwt_delay_ms(1);
+		dwt_delay_ms(2);
 	}
 	/* USER CODE END 3 */
 }
@@ -252,8 +257,9 @@ void SystemClock_Config(void)
 	/** Initializes the RCC Oscillators according to the specified parameters
 	 * in the RCC_OscInitTypeDef structure.
 	 */
-	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI | RCC_OSCILLATORTYPE_HSE;
 	RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+	RCC_OscInitStruct.LSIState = RCC_LSI_ON;
 	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
 	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
 	RCC_OscInitStruct.PLL.PLLM = 12;
