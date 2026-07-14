@@ -68,7 +68,9 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+uint32_t cnt;
 struct spi_inst *spi6 = NULL;
+struct tim_inst *tim5 = NULL;
 struct tim_inst *tim12 = NULL;
 struct usart_inst *usart5 = NULL;
 const struct sbus_data *sbus = NULL;
@@ -94,6 +96,11 @@ void usart5_callback(uint8_t *rx_buff, uint16_t len)
 	}
 }
 
+void tim5_callback(void)
+{
+	cnt++;
+}
+
 void bsp_init()
 {
 	/* dwt config */
@@ -108,12 +115,18 @@ void bsp_init()
 	spi6 = spi_register(&spi6_config);
 
 	/* tim config */
+	struct tim_config tim5_config = {
+	    .htim = &htim5,
+	    .mode = TIM_INTERRUPT_MODE,
+	    .callback = tim5_callback,
+	};
 	struct tim_config tim12_config = {
 	    .htim = &htim12,
 	    .channel = TIM_CHANNEL_2,
 	    .clk_freq = APB1_FREQ * 1000000,
 	    .mode = TIM_PWM_MODE,
 	};
+	tim5 = tim_register(&tim5_config);
 	tim12 = tim_register(&tim12_config);
 
 	/* usart config */

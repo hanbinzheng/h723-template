@@ -4,8 +4,10 @@
 #include "tim.h"
 
 #define TIM_INST_MAX_NUM 5
+#define TIM_CHANNEL_NONE ((uint32_t)-1)
 
 struct tim_inst;
+typedef void (*tim_callback)(void);
 
 enum tim_mode {
 	TIM_INTERRUPT_MODE = 0,
@@ -17,6 +19,7 @@ struct tim_config {
 	uint32_t channel; /* TIM_CHANNEL_1, TIM_CHANNEL_2... */
 	enum tim_mode mode;
 	uint32_t clk_freq;
+	tim_callback callback;
 };
 
 /**
