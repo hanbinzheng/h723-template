@@ -68,25 +68,10 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-int usart5_cnt = 0;
-int usart5_len = 0;
-int usart10_cnt = 0;
-int usart10_len = 0;
-
 struct spi_inst *spi6 = NULL;
 struct tim_inst *tim12 = NULL;
 struct usart_inst *usart5 = NULL;
-struct usart_inst *usart7 = NULL;
-struct usart_inst *usart10 = NULL;
 const struct sbus_data *sbus = NULL;
-
-struct gm6020 {
-	int16_t pos;
-	int16_t vel;
-	int16_t eff;
-};
-
-struct gm6020 motor1, motor2;
 
 /* USER CODE END PV */
 
@@ -104,17 +89,9 @@ void device_init(void);
 /* USER CODE BEGIN 0 */
 void usart5_callback(uint8_t *rx_buff, uint16_t len)
 {
-	usart5_cnt++;
-	usart5_len = len;
 	if (len == SBUS_FRAME_LENGTH) {
 		sbus_update(rx_buff);
 	}
-}
-
-void usart10_callback(uint8_t *rx_buff, uint16_t len)
-{
-	usart10_cnt++;
-	usart10_len = len;
 }
 
 void bsp_init()
@@ -147,22 +124,6 @@ void bsp_init()
 	    .callback = usart5_callback,
 	};
 	usart5 = usart_register(&usart5_config);
-
-	struct usart_config usart7_config = {
-	    .huart = &huart7,
-	    .rx_mode = USART_RECEIVE_POLLING,
-	    .tx_mode = USART_TRANSMIT_POLLING,
-	    .callback = NULL,
-	};
-	usart7 = usart_register(&usart7_config);
-
-	struct usart_config usart10_config = {
-	    .huart = &huart10,
-	    .rx_mode = USART_RECEIVE_IDLE_DMA_CIRCULAR,
-	    .tx_mode = USART_TRANSMIT_IT,
-	    .callback = usart10_callback,
-	};
-	usart10 = usart_register(&usart10_config);
 }
 
 void device_init()
@@ -253,6 +214,7 @@ int main(void)
 		// time_ticks += 0.05f;
 		// dwt_delay_ms(10);
 		// vofa_send(target, actual, 0.0f);
+		sbus = sbus_get_data();
 		LOG_INFO("FUCK");
 		dwt_delay_ms(1);
 	}
