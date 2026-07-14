@@ -39,6 +39,7 @@
 
 #include "buzzer.h"
 #include "dbus.h"
+#include "motor.h"
 #include "sbus.h"
 #include "ws2812.h"
 
@@ -77,10 +78,6 @@ struct tim_inst *tim12 = NULL;
 struct usart_inst *usart5 = NULL;
 struct usart_inst *usart7 = NULL;
 struct usart_inst *usart10 = NULL;
-struct can_rx_inst *gm6020_1 = NULL;
-struct can_rx_inst *gm6020_2 = NULL;
-struct can_tx_inst *gm6020_tx = NULL;
-
 const struct sbus_data *sbus = NULL;
 
 struct gm6020 {
@@ -120,55 +117,10 @@ void usart10_callback(uint8_t *rx_buff, uint16_t len)
 	usart10_len = len;
 }
 
-void fdcan1_callback(struct can_rx_inst *inst, uint8_t *rx_buff)
-{
-	int16_t pos = (int16_t)(((rx_buff[0] << 8) | rx_buff[1]) & 0xFFFF);
-	int16_t vel = (int16_t)(((rx_buff[2] << 8) | rx_buff[3]) & 0xFFFF);
-	int16_t eff = (int16_t)(((rx_buff[4] << 8) | rx_buff[5]) & 0xFFFF);
-
-	if (inst == gm6020_1) {
-		motor1.pos = pos;
-		motor1.vel = vel;
-		motor1.eff = eff;
-	} else if (inst == gm6020_2) {
-		motor2.pos = pos;
-		motor2.vel = vel;
-		motor2.eff = eff;
-	}
-}
-
 void bsp_init()
 {
 	/* dwt config */
 	dwt_init(MCU_MAIN_FREQ);
-
-	/* fdcan config */
-	struct can_rx_config gm6020_config_1 = {
-	    .hfdcan = &hfdcan1,
-	    .callback = fdcan1_callback,
-	    .mask = 0x7FF,
-	    .id = 0x205,
-	    .type = CAN_STANDARD,
-	};
-	gm6020_1 = can_register_rx(&gm6020_config_1);
-
-	struct can_rx_config gm6020_config_2 = {
-	    .hfdcan = &hfdcan1,
-	    .callback = fdcan1_callback,
-	    .mask = 0x7FF,
-	    .id = 0x206,
-	    .type = CAN_STANDARD,
-	};
-	gm6020_2 = can_register_rx(&gm6020_config_2);
-
-	struct can_tx_config gm6020_config_tx = {
-	    .hfdcan = &hfdcan1,
-	    .id = 0x1FF,
-	    .type = CAN_STANDARD,
-	};
-	gm6020_tx = can_register_tx(&gm6020_config_tx);
-
-	can_start();
 
 	/* spi config */
 	struct spi_config spi6_config = {
@@ -277,6 +229,8 @@ int main(void)
 	device_init();
 	vofa_init();
 
+	motor_init();
+	can_start();
 	LOG_DEBUG("========================================");	 /* for yellow color */
 	LOG_ERROR("FUCKING ROBOMASTER STM32 RTT Terminal Test"); /* for red color */
 	LOG_DEBUG("========================================");	 /* for yellow color */
@@ -299,8 +253,6 @@ int main(void)
 		// time_ticks += 0.05f;
 		// dwt_delay_ms(10);
 		// vofa_send(target, actual, 0.0f);
-		uint8_t buff[8] = {0x05, 0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00};
-		can_transmit(gm6020_tx, buff);
 		LOG_INFO("FUCK");
 		dwt_delay_ms(1);
 	}
