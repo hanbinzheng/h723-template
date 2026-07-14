@@ -229,7 +229,9 @@ int main(void)
 		// time_ticks += 0.05f;
 		// dwt_delay_ms(10);
 		// vofa_send(target, actual, 0.0f);
-		dwt_delay_ms(2);
+		sbus = sbus_get_data();
+		dwt_delay_ms(1);
+		vel_debug();
 	}
 	/* USER CODE END 3 */
 }
