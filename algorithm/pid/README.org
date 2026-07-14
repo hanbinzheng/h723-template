@@ -1,0 +1,58 @@
+#+title: Documentation of PID Controller
+#+author: Hanbin Zheng
+
+This library provides a lightweight PID (Proportional-Integral-Derivative) controller implementation with support for integral saturation limiting, output clamping, linear scaling, and feed-forward compensation.
+* 1. API & Usage Examples
+
+** (1) Initialization and Configuration
+
+Define a =struct pid_info= instance and configure its control parameters ($K_p, K_i, K_d$) along with saturation constraints.
+
+#+BEGIN_SRC c
+#include "pid.h"
+
+struct pid_info motor_pid = {
+    .kp = 1.5f,
+    .ki = 0.01f,
+    .kd = 0.2f,
+    .i_limit = 1000.0f,
+    .out_limit = 5000.0f,
+    .linear = 0.0f,
+    .feed_forward = 50.0f
+};
+#+END_SRC
+
+** (2) Executing the Control Loop
+
+Invoke =pid_calculate= periodically within your control task or timer interrupt (e.g., 1ms loop) to obtain the actuator command.
+
+#+BEGIN_SRC c
+/* Inside your periodic control loop (e.g., 1kHz task) */
+float target_speed = 10.0f;                /* Reference */
+float current_speed = get_motor_speed();   /* Measurement */
+
+float control_output = pid_calculate(&motor_pid, target_speed, current_speed);
+
+/* Apply the calculated output to the actuator */
+set_motor_current(control_output);
+#+END_SRC
+
+* 2. Formula & Control Law
+
+The controller calculates the output at each time step based on the following mathematical formulations:
+
+** (1) Error Definition
+$$e(t) = r(t) - m(t)$$
+
+Where $r(t)$ is the reference (target) and $m(t)$ is the measurement (feedback).
+
+** (2) Standard PID Components
+- *Proportional*: $P_{\text{out}} = K_p \cdot e(t)$
+- *Integral*: $I_{\text{out}} = \text{limit} \left( \sum K_i \cdot e(t), \pm I_{\text{limit}} \right)$
+- *Derivative*: $D_{\text{out}} = K_d \cdot (e(t) - e(t-1))$
+
+** (3) Combined Output Rule
+$$\text{Output} = \text{limit}\left(P_{\text{out}} + I_{\text{out}} + D_{\text{out}} + \text{sign}(r(t)) \cdot F_{\text{ff}} + L \cdot r(t), \pm \text{Out}_{\text{limit}}\right)$$
+
+Where $F_{\text{ff}}$ represents the feed-forward compensation and $L$ represents the linear scaling factor.
+
