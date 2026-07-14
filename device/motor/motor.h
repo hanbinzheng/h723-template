@@ -47,7 +47,9 @@ enum dji_motor_freq {
 
 void motor_init(void);
 
-void gm6020_set_pos(float front_left, float front_right, float back_left, float back_right);
+void vel_debug(void);
+
+void m3508_set_vel(float front_left, float front_right, float back_left, float back_right);
 void gm6020_set_vel(float front_left, float front_right, float back_left, float back_right);
 void gm6020_set_pos(float front_left, float front_right, float back_left, float back_right);
 

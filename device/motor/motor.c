@@ -1,6 +1,8 @@
 #include "motor.h"
 #include "bsp_fdcan.h"
 #include "pid.h"
+#include "sbus.h"
+#include "vofa.h"
 
 #ifndef PI
 #define PI (3.14159265358979f)
@@ -42,45 +44,50 @@ struct dji_motor_inst {
 
 static struct can_tx_inst *can_1 = NULL;
 static struct can_tx_inst *can_2 = NULL;
+static float scale = 15.0f;
 
 struct dji_motor_inst gm6020_1 = {
     .type = DJI_GM6020,
-    .pid = {.kp = 0.0f, .ki = 0.0f, .kd = 0.0f, .i_limit = 0.0f, .out_limit = 0.0f},
+    .pid =
+	{.kp = 0.6f, .ki = 0.1f, .kd = 0.0f, .i_limit = 1.2f, .out_limit = 20.0f, .linear = 0.4f},
 };
 
 struct dji_motor_inst gm6020_2 = {
     .type = DJI_GM6020,
-    .pid = {.kp = 0.0f, .ki = 0.0f, .kd = 0.0f, .i_limit = 0.0f, .out_limit = 0.0f},
+    .pid =
+	{.kp = 0.6f, .ki = 0.1f, .kd = 0.0f, .i_limit = 1.2f, .out_limit = 20.0f, .linear = 0.4f},
 };
 
 struct dji_motor_inst gm6020_3 = {
     .type = DJI_GM6020,
-    .pid = {.kp = 0.0f, .ki = 0.0f, .kd = 0.0f, .i_limit = 0.0f, .out_limit = 0.0f},
+    .pid =
+	{.kp = 1.1f, .ki = 0.1f, .kd = 0.0f, .i_limit = 2.0f, .out_limit = 20.0f, .linear = 0.4f},
 };
 
 struct dji_motor_inst gm6020_4 = {
     .type = DJI_GM6020,
-    .pid = {.kp = 0.0f, .ki = 0.0f, .kd = 0.0f, .i_limit = 0.0f, .out_limit = 0.0f},
+    .pid =
+	{.kp = 1.0f, .ki = 0.1f, .kd = 0.0f, .i_limit = 1.2f, .out_limit = 20.0f, .linear = 0.4f},
 };
 
 struct dji_motor_inst m3508_5 = {
     .type = DJI_M3508,
-    .pid = {.kp = 0.0f, .ki = 0.0f, .kd = 0.0f, .i_limit = 0.0f, .out_limit = 0.0f},
+    .pid = {.kp = 0.05f, .ki = 0.0003f, .kd = 0.0f, .i_limit = 1.0f, .out_limit = 20.0f},
 };
 
 struct dji_motor_inst m3508_6 = {
     .type = DJI_M3508,
-    .pid = {.kp = 0.0f, .ki = 0.0f, .kd = 0.0f, .i_limit = 0.0f, .out_limit = 0.0f},
+    .pid = {.kp = 0.035f, .ki = 0.0002f, .kd = 0.0f, .i_limit = 1.0f, .out_limit = 20.0f},
 };
 
 struct dji_motor_inst m3508_7 = {
     .type = DJI_M3508,
-    .pid = {.kp = 0.0f, .ki = 0.0f, .kd = 0.0f, .i_limit = 0.0f, .out_limit = 0.0f},
+    .pid = {.kp = 0.05f, .ki = 0.00003f, .kd = 0.0f, .i_limit = 1.0f, .out_limit = 20.0f},
 };
 
 struct dji_motor_inst m3508_8 = {
     .type = DJI_M3508,
-    .pid = {.kp = 0.0f, .ki = 0.0f, .kd = 0.0f, .i_limit = 0.0f, .out_limit = 0.0f},
+    .pid = {.kp = 0.05f, .ki = 0.0001f, .kd = 0.0f, .i_limit = 0.5f, .out_limit = 20.0f},
 };
 
 void motor_callback(struct can_rx_inst *inst, uint8_t *buff);
@@ -209,6 +216,41 @@ void motor_callback(struct can_rx_inst *can_inst, uint8_t *buff)
 			}
 		}
 	}
+}
+
+__ALWAYS_INLINE
+static void set_single_vel(struct dji_motor_inst *motor, float ref)
+{
+	float meas = motor->vel;
+	float cmd = pid_calculate(&(motor->pid), ref, meas);
+	switch (motor->type) {
+	case DJI_M2006:
+		break;
+	case DJI_M3508:
+		motor->cmd = M3508_CURRENT_FLOAT_TO_INT(cmd);
+		break;
+	case DJI_GM6020:
+		motor->cmd = GM6020_VOLTAGE_FLOAT_TO_INT(cmd);
+	}
+}
+
+void vel_debug(void)
+{
+	static uint32_t cnt = 0;
+	struct dji_motor_inst *motor = &gm6020_3;
+	const struct sbus_data *sbus = sbus_get_data();
+	float ref = sbus->ls_x * scale;
+
+	set_single_vel(motor, ref);
+
+	if ((cnt++) & (0x01)) {
+		vofa_send(ref, motor->vel);
+	}
+}
+
+void m3508_set_vel(float front_left, float front_right, float back_left, float back_right)
+{
+	return;
 }
 
 void motor_set_command()
