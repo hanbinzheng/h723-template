@@ -19,12 +19,12 @@ enum dji_motor_type {
 	DJI_GM6020,
 };
 
-enum dji_motor_freq {
-	FREQ_125_HZ = 8, /* 125 * 8 = 1000 */
-	FREQ_250_HZ = 4,
-	FREQ_500_Hz = 2,
-	FREQ_1000_HZ = 1,
-};
+// enum dji_motor_freq {
+// 	FREQ_125_HZ = 8, /* 125 * 8 = 1000 */
+// 	FREQ_250_HZ = 4,
+// 	FREQ_500_Hz = 2,
+// 	FREQ_1000_HZ = 1,
+// };
 
 // enum dji_motor_id {
 // 	DJI_MOTOR_ID_1 = 1,
@@ -47,11 +47,12 @@ enum dji_motor_freq {
 
 void motor_init(void);
 
-void vel_debug(void);
+/* in rads */
+void m3508_set_vel(float front_left, float back_left, float back_right, float front_right);
+void gm6020_set_vel(float front_left, float back_left, float back_right, float front_right);
 
-void m3508_set_vel(float front_left, float front_right, float back_left, float back_right);
-void gm6020_set_vel(float front_left, float front_right, float back_left, float back_right);
-void gm6020_set_pos(float front_left, float front_right, float back_left, float back_right);
+/* within -PI and PI */
+void gm6020_set_pos(float front_left, float back_left, float back_right, float front_right);
 
 /* this function should be executed in a 1000hz loop */
 void motor_set_command(void);
