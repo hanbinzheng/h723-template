@@ -80,7 +80,7 @@ struct dji_motor_inst gm6020_1 = {
 
 struct dji_motor_inst gm6020_2 = {
     .type = DJI_GM6020,
-    .offset = 3420,
+    .offset = 3395,
     .pid_v2e =
 	{.kp = 0.6f, .ki = 0.1f, .kd = 0.0f, .i_limit = 1.2f, .out_limit = 20.0f, .linear = 0.4f},
     .pid_p2v = {.kp = 8.0f, .ki = 0.0f, .kd = 0.0f, .i_limit = 0.0f, .out_limit = 20.0f},
@@ -88,7 +88,7 @@ struct dji_motor_inst gm6020_2 = {
 
 struct dji_motor_inst gm6020_3 = {
     .type = DJI_GM6020,
-    .offset = 6985,
+    .offset = 6825,
     .pid_v2e =
 	{.kp = 1.1f, .ki = 0.1f, .kd = 0.0f, .i_limit = 2.0f, .out_limit = 20.0f, .linear = 0.4f},
     .pid_p2v = {.kp = 8.0f, .ki = 0.0f, .kd = 0.0f, .i_limit = 0.0f, .out_limit = 20.0f},
@@ -233,26 +233,34 @@ void motor_init()
 
 void m3508_set_vel(float front_left, float back_left, float back_right, float front_right)
 {
-	set_single_vel(&m3508_5, front_left * DJI_M3508_REDUCTION_RATE);
-	set_single_vel(&m3508_6, back_left * DJI_M3508_REDUCTION_RATE);
-	set_single_vel(&m3508_7, back_right * DJI_M3508_REDUCTION_RATE);
-	set_single_vel(&m3508_8, front_right * DJI_M3508_REDUCTION_RATE);
+	set_single_vel(&m3508_7, front_left * DJI_M3508_REDUCTION_RATE);
+	set_single_vel(&m3508_8, back_left * DJI_M3508_REDUCTION_RATE);
+	set_single_vel(&m3508_5, back_right * DJI_M3508_REDUCTION_RATE);
+	set_single_vel(&m3508_6, front_right * DJI_M3508_REDUCTION_RATE);
 }
 
 void gm6020_set_vel(float front_left, float back_left, float back_right, float front_right)
 {
-	set_single_vel(&gm6020_2, front_left);
-	set_single_vel(&gm6020_1, back_left);
-	set_single_vel(&gm6020_4, back_right);
-	set_single_vel(&gm6020_3, front_right);
+	set_single_vel(&gm6020_4, front_left);
+	set_single_vel(&gm6020_3, back_left);
+	set_single_vel(&gm6020_2, back_right);
+	set_single_vel(&gm6020_1, front_right);
+}
+
+void gm6020_get_pos(float pos[4])
+{
+	pos[0] = gm6020_4.pos;
+	pos[1] = gm6020_3.pos;
+	pos[2] = gm6020_2.pos;
+	pos[3] = gm6020_1.pos;
 }
 
 void gm6020_set_pos(float front_left, float back_left, float back_right, float front_right)
 {
-	set_single_pos(&gm6020_2, front_left);
-	set_single_pos(&gm6020_1, back_left);
-	set_single_pos(&gm6020_4, back_right);
-	set_single_pos(&gm6020_3, front_right);
+	set_single_pos(&gm6020_4, front_left);
+	set_single_pos(&gm6020_3, back_left);
+	set_single_pos(&gm6020_2, back_right);
+	set_single_pos(&gm6020_1, front_right);
 }
 
 void motor_set_command()

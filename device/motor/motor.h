@@ -52,6 +52,7 @@ void m3508_set_vel(float front_left, float back_left, float back_right, float fr
 void gm6020_set_vel(float front_left, float back_left, float back_right, float front_right);
 
 /* within -PI and PI */
+void gm6020_get_pos(float pos[4]); /* front_left, back_left, back_right, front_right */
 void gm6020_set_pos(float front_left, float back_left, float back_right, float front_right);
 
 /* this function should be executed in a 1000hz loop */

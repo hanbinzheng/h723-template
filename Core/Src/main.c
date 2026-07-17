@@ -28,10 +28,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include <string.h>
-
-#include "crc.h"
-#include "hash.h"
+#include "chassis.h"
 
 #include "bsp_dwt.h"
 #include "bsp_fdcan.h"
@@ -101,6 +98,12 @@ void usart5_callback(uint8_t *rx_buff, uint16_t len)
 	}
 }
 
+void task()
+{
+	chassis_task();
+	motor_set_command();
+}
+
 void bsp_init()
 {
 	/* dwt config */
@@ -118,7 +121,7 @@ void bsp_init()
 	struct tim_config tim5_config = {
 	    .htim = &htim5,
 	    .mode = TIM_INTERRUPT_MODE,
-	    .callback = motor_set_command,
+	    .callback = task,
 	};
 	struct tim_config tim12_config = {
 	    .htim = &htim12,

@@ -51,6 +51,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     algorithm/hash/hash.c
     algorithm/pid/pid.c
 
+    application/chassis/chassis.c
+
     bsp/dwt/bsp_dwt.c
     bsp/fdcan/bsp_fdcan.c
     bsp/rtt/SEGGER_RTT/RTT/SEGGER_RTT.c
@@ -76,6 +78,8 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     algorithm/crc
     algorithm/hash
     algorithm/pid
+
+    application/chassis
 
     bsp/dwt
     bsp/fdcan
