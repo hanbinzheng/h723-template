@@ -9,12 +9,13 @@ struct pid_info {
 	float i_limit;
 	float out_limit;
 
-	/* output += linear * reference + feed_forward */
+	/* output += linear * ref + ff * (ref - last_ref) */
 	float linear;
-	float feed_forward;
+	float ff;
 
-	float reference;
-	float measure;
+	float ref;
+	float last_ref;
+	float meas;
 	float error;
 	float last_error;
 	float output;
@@ -25,6 +26,6 @@ struct pid_info {
 	float d_out;
 };
 
-float pid_calculate(struct pid_info *pid, float reference, float measure);
+float pid_calculate(struct pid_info *pid, float ref, float meas);
 
 #endif /* PID_H_ */
