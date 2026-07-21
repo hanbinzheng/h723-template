@@ -1,4 +1,6 @@
 #include "bsp_fdcan.h"
+#include "bsp_dwt.h"
+#include "vofa.h"
 #include <assert.h>
 
 #define CAN_BUS_NUM 3	      /* 3 FDCAN peripherals in total */
@@ -22,6 +24,11 @@ struct can_rx_inst {
 	uint32_t id;
 	void *user_data;
 	can_rx_callback callback;
+
+	/* time related feedback info */
+	uint64_t cnt;	    /* number of reception */
+	uint64_t last_time; /* last reception, in us */
+	uint64_t time_diff; /* us */
 };
 
 struct can_tx_inst {
@@ -272,6 +279,12 @@ void HAL_FDCAN_RxFifo0Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo0ITs)
 
 		if (inst != NULL && inst->callback != NULL) {
 			inst->callback(inst, buff);
+
+			/* time related feedback */
+			inst->cnt++;
+			uint64_t curr_time = dwt_get_timeline_us();
+			inst->time_diff = curr_time - inst->last_time;
+			inst->last_time = curr_time;
 		}
 	}
 }
