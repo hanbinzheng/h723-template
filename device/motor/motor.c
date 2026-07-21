@@ -18,8 +18,6 @@
 /* current: -16384 ~ 16384 <-> -3 ~ 3 */
 #define DJI_GM6020_CURRENT_FLOAT_TO_INT(value) ((int16_t)((value) * 5461.333333f)) /* 16384 / 3 */
 #define DJI_GM6020_CURRENT_INT_TO_FLOAT(value) ((float)(value) * 0.0001831054687f) /* 3 / 16384 */
-/* voltage: -24 ~ 24 <-> -25000 ~ 25000 */
-#define DJI_GM6020_VOLTAGE_FLOAT_TO_INT(value) ((int16_t)((value) * 1041.66667f)) /* 25000 / 24 */
 
 /* M3508 */
 #define DJI_M3508_REDUCTION_RATE 19.203208556149733f /* 3591 / 187 */
@@ -73,33 +71,21 @@ static struct can_tx_inst *can_2 = NULL;
 struct dji_motor_inst gm6020_1 = {
     .type = DJI_GM6020,
     .offset = 3475,
-    .pid_v2e =
-	{.kp = 0.4f, .ki = 0.014f, .kd = 0.0f, .i_limit = 0.5f, .out_limit = 20.0f, .linear = 0.5f},
-    .pid_p2v = {.kp = 10.0f, .ki = 0.0f, .kd = 0.0f, .i_limit = 0.0f, .out_limit = 20.0f},
 };
 
 struct dji_motor_inst gm6020_2 = {
     .type = DJI_GM6020,
     .offset = 3395,
-    .pid_v2e =
-	{.kp = 0.6f, .ki = 0.1f, .kd = 0.0f, .i_limit = 1.2f, .out_limit = 20.0f, .linear = 0.4f},
-    .pid_p2v = {.kp = 8.0f, .ki = 0.0f, .kd = 0.0f, .i_limit = 0.0f, .out_limit = 20.0f},
 };
 
 struct dji_motor_inst gm6020_3 = {
     .type = DJI_GM6020,
     .offset = 6825,
-    .pid_v2e =
-	{.kp = 1.1f, .ki = 0.1f, .kd = 0.0f, .i_limit = 2.0f, .out_limit = 20.0f, .linear = 0.4f},
-    .pid_p2v = {.kp = 8.0f, .ki = 0.0f, .kd = 0.0f, .i_limit = 0.0f, .out_limit = 20.0f},
 };
 
 struct dji_motor_inst gm6020_4 = {
     .type = DJI_GM6020,
     .offset = 5975,
-    .pid_v2e =
-	{.kp = 1.0f, .ki = 0.1f, .kd = 0.0f, .i_limit = 1.2f, .out_limit = 20.0f, .linear = 0.4f},
-    .pid_p2v = {.kp = 10.0f, .ki = 0.0f, .kd = 0.0f, .i_limit = 0.0f, .out_limit = 20.0f},
 };
 
 struct dji_motor_inst m3508_5 = {
@@ -122,12 +108,11 @@ struct dji_motor_inst m3508_8 = {
     .pid_v2e = {.kp = 0.05f, .ki = 0.0001f, .kd = 0.0f, .i_limit = 0.5f, .out_limit = 20.0f},
 };
 
-struct dji_motor_inst *motor = &gm6020_4;
+struct dji_motor_inst *motor = NULL;
 
-/* function definition */
 void motor_init()
 {
-	/* initialize gm6020 1 */
+	/* gm6020_1 */
 	struct can_rx_config can_gm6020_1 = {
 	    .callback = motor_callback,
 	    .hfdcan = &hfdcan2,
@@ -138,7 +123,29 @@ void motor_init()
 	gm6020_1.can_rx_inst = can_register_rx(&can_gm6020_1);
 	can_set_user_data(gm6020_1.can_rx_inst, &gm6020_1);
 
-	/* initialize gm6020 4 */
+	/* gm6020_2 */
+	struct can_rx_config can_gm6020_2 = {
+	    .callback = motor_callback,
+	    .hfdcan = &hfdcan2,
+	    .id = 0x206, /* 0x204 + 2 */
+	    .mask = 0x7FF,
+	    .type = CAN_STANDARD,
+	};
+	gm6020_2.can_rx_inst = can_register_rx(&can_gm6020_2);
+	can_set_user_data(gm6020_2.can_rx_inst, &gm6020_2);
+
+	/* gm6020_3 */
+	struct can_rx_config can_gm6020_3 = {
+	    .callback = motor_callback,
+	    .hfdcan = &hfdcan2,
+	    .id = 0x207, /* 0x204 + 3 */
+	    .mask = 0x7FF,
+	    .type = CAN_STANDARD,
+	};
+	gm6020_3.can_rx_inst = can_register_rx(&can_gm6020_3);
+	can_set_user_data(gm6020_3.can_rx_inst, &gm6020_3);
+
+	/* gm6020_4 */
 	struct can_rx_config can_gm6020_4 = {
 	    .callback = motor_callback,
 	    .hfdcan = &hfdcan2,
@@ -149,29 +156,7 @@ void motor_init()
 	gm6020_4.can_rx_inst = can_register_rx(&can_gm6020_4);
 	can_set_user_data(gm6020_4.can_rx_inst, &gm6020_4);
 
-	/* initialize gm6020 2 */
-	struct can_rx_config can_gm6020_2 = {
-	    .callback = motor_callback,
-	    .hfdcan = &hfdcan1,
-	    .id = 0x206, /* 0x204 + 2 */
-	    .mask = 0x7FF,
-	    .type = CAN_STANDARD,
-	};
-	gm6020_2.can_rx_inst = can_register_rx(&can_gm6020_2);
-	can_set_user_data(gm6020_2.can_rx_inst, &gm6020_2);
-
-	/* initialize gm6020 3 */
-	struct can_rx_config can_gm6020_3 = {
-	    .callback = motor_callback,
-	    .hfdcan = &hfdcan1,
-	    .id = 0x207, /* 0x204 + 3 */
-	    .mask = 0x7FF,
-	    .type = CAN_STANDARD,
-	};
-	gm6020_3.can_rx_inst = can_register_rx(&can_gm6020_3);
-	can_set_user_data(gm6020_3.can_rx_inst, &gm6020_3);
-
-	/* initialize m3508 1 */
+	/* m3508_5 */
 	struct can_rx_config can_m3508_5 = {
 	    .callback = motor_callback,
 	    .hfdcan = &hfdcan1,
@@ -181,6 +166,28 @@ void motor_init()
 	};
 	m3508_5.can_rx_inst = can_register_rx(&can_m3508_5);
 	can_set_user_data(m3508_5.can_rx_inst, &m3508_5);
+
+	/* m3508_6 */
+	struct can_rx_config can_m3508_6 = {
+	    .callback = motor_callback,
+	    .hfdcan = &hfdcan1,
+	    .id = 0x206, /* 0x200 + 6 */
+	    .mask = 0x7FF,
+	    .type = CAN_STANDARD,
+	};
+	m3508_6.can_rx_inst = can_register_rx(&can_m3508_6);
+	can_set_user_data(m3508_6.can_rx_inst, &m3508_6);
+
+	/* m3508_7 */
+	struct can_rx_config can_m3508_7 = {
+	    .callback = motor_callback,
+	    .hfdcan = &hfdcan1,
+	    .id = 0x207, /* 0x200 + 7 */
+	    .mask = 0x7FF,
+	    .type = CAN_STANDARD,
+	};
+	m3508_7.can_rx_inst = can_register_rx(&can_m3508_7);
+	can_set_user_data(m3508_7.can_rx_inst, &m3508_7);
 
 	/* initialize m3508 4 */
 	struct can_rx_config can_m3508_8 = {
@@ -193,101 +200,70 @@ void motor_init()
 	m3508_8.can_rx_inst = can_register_rx(&can_m3508_8);
 	can_set_user_data(m3508_8.can_rx_inst, &m3508_8);
 
-	/* initialize m3508 2 */
-	struct can_rx_config can_m3508_6 = {
-	    .callback = motor_callback,
-	    .hfdcan = &hfdcan2,
-	    .id = 0x206, /* 0x200 + 6 */
-	    .mask = 0x7FF,
-	    .type = CAN_STANDARD,
-	};
-	m3508_6.can_rx_inst = can_register_rx(&can_m3508_6);
-	can_set_user_data(m3508_6.can_rx_inst, &m3508_6);
-
-	/* initialize m3508 3 */
-	struct can_rx_config can_m3508_7 = {
-	    .callback = motor_callback,
-	    .hfdcan = &hfdcan2,
-	    .id = 0x207, /* 0x200 + 7 */
-	    .mask = 0x7FF,
-	    .type = CAN_STANDARD,
-	};
-	m3508_7.can_rx_inst = can_register_rx(&can_m3508_7);
-	can_set_user_data(m3508_7.can_rx_inst, &m3508_7);
-
-	/* register tx instance */
+	/* register tx can instance */
 	struct can_tx_config can_config_1 = {
 	    .hfdcan = &hfdcan1,
 	    .id = 0x1FF,
 	    .type = CAN_STANDARD,
 	};
-	can_1 = can_register_tx(&can_config_1);
-
 	struct can_tx_config can_config_2 = {
 	    .hfdcan = &hfdcan2,
-	    .id = 0x1FF,
+	    .id = 0x1FE,
 	    .type = CAN_STANDARD,
 	};
+	can_1 = can_register_tx(&can_config_1);
 	can_2 = can_register_tx(&can_config_2);
 }
 
 void m3508_set_vel(float front_left, float back_left, float back_right, float front_right)
 {
-	set_single_vel(&m3508_7, front_left * DJI_M3508_REDUCTION_RATE);
-	set_single_vel(&m3508_8, back_left * DJI_M3508_REDUCTION_RATE);
-	set_single_vel(&m3508_5, back_right * DJI_M3508_REDUCTION_RATE);
-	set_single_vel(&m3508_6, front_right * DJI_M3508_REDUCTION_RATE);
+	return;
 }
 
 void gm6020_set_vel(float front_left, float back_left, float back_right, float front_right)
 {
-	set_single_vel(&gm6020_4, front_left);
-	set_single_vel(&gm6020_3, back_left);
-	set_single_vel(&gm6020_2, back_right);
-	set_single_vel(&gm6020_1, front_right);
-}
-
-void gm6020_get_pos(float pos[4])
-{
-	pos[0] = gm6020_4.pos;
-	pos[1] = gm6020_3.pos;
-	pos[2] = gm6020_2.pos;
-	pos[3] = gm6020_1.pos;
+	return;
 }
 
 void gm6020_set_pos(float front_left, float back_left, float back_right, float front_right)
 {
-	set_single_pos(&gm6020_4, front_left);
-	set_single_pos(&gm6020_3, back_left);
-	set_single_pos(&gm6020_2, back_right);
-	set_single_pos(&gm6020_1, front_right);
+	return;
 }
 
 void motor_set_command()
 {
-	/* transmit buffer for can1 and can2 */
 	uint8_t buff1[8], buff2[8];
 
-	buff1[0] = (m3508_5.cmd >> 8) & 0xFF; /* first motor */
+	buff1[0] = (m3508_5.cmd >> 8) & 0xFF;
 	buff1[1] = m3508_5.cmd & 0xFF;
-	buff1[2] = (gm6020_2.cmd >> 8) & 0xFF; /* second motor */
-	buff1[3] = gm6020_2.cmd & 0xFF;
-	buff1[4] = (gm6020_3.cmd >> 8) & 0xFF; /* third motor */
-	buff1[5] = gm6020_3.cmd & 0xFF;
-	buff1[6] = (m3508_8.cmd >> 8) & 0xFF; /* last motor */
+	buff2[2] = (m3508_6.cmd >> 8) & 0xFF;
+	buff2[3] = m3508_6.cmd & 0xFF;
+	buff2[4] = (m3508_7.cmd >> 8) & 0xFF;
+	buff2[5] = m3508_7.cmd & 0xFF;
+	buff1[6] = (m3508_8.cmd >> 8) & 0xFF;
 	buff1[7] = m3508_8.cmd & 0xFF;
 
-	buff2[0] = (gm6020_1.cmd >> 8) & 0xFF; /* first motor */
+	buff2[0] = (gm6020_1.cmd >> 8) & 0xFF;
 	buff2[1] = gm6020_1.cmd & 0xFF;
-	buff2[2] = (m3508_6.cmd >> 8) & 0xFF; /* second motor */
-	buff2[3] = m3508_6.cmd & 0xFF;
-	buff2[4] = (m3508_7.cmd >> 8) & 0xFF; /* third motor */
-	buff2[5] = m3508_7.cmd & 0xFF;
-	buff2[6] = (gm6020_4.cmd >> 8) & 0xFF; /* last motor */
+	buff1[2] = (gm6020_2.cmd >> 8) & 0xFF;
+	buff1[3] = gm6020_2.cmd & 0xFF;
+	buff1[4] = (gm6020_3.cmd >> 8) & 0xFF;
+	buff1[5] = gm6020_3.cmd & 0xFF;
+	buff2[6] = (gm6020_4.cmd >> 8) & 0xFF;
 	buff2[7] = gm6020_4.cmd & 0xFF;
 
 	can_transmit(can_1, buff1);
 	can_transmit(can_2, buff2);
+
+	/* clean the command for safety */
+	gm6020_1.cmd = 0;
+	gm6020_2.cmd = 0;
+	gm6020_3.cmd = 0;
+	gm6020_4.cmd = 0;
+	m3508_5.cmd = 0;
+	m3508_6.cmd = 0;
+	m3508_7.cmd = 0;
+	m3508_8.cmd = 0;
 }
 
 static void motor_callback(struct can_rx_inst *can_inst, uint8_t *buff)
@@ -302,10 +278,15 @@ static void motor_callback(struct can_rx_inst *can_inst, uint8_t *buff)
 			/* get pos, vel and effort */
 			raw_pos_into_pos(motor);
 			motor->vel = DJI_RPM_TO_RADS(motor->raw_vel);
-			if (motor->type == DJI_GM6020) {
+			switch (motor->type) {
+			case DJI_GM6020:
 				motor->eff = DJI_GM6020_CURRENT_INT_TO_FLOAT(motor->raw_eff);
-			} else if (motor->type == DJI_M3508) {
+				break;
+			case DJI_M3508:
 				motor->eff = DJI_M3508_CURRENT_INT_TO_FLOAT(motor->raw_eff);
+				break;
+			case DJI_M2006:
+				break; /* unused */
 			}
 		}
 	}
@@ -315,13 +296,14 @@ static void set_single_vel(struct dji_motor_inst *motor, float ref)
 {
 	float cmd = pid_calculate(&(motor->pid_v2e), ref, motor->vel);
 	switch (motor->type) {
-	case DJI_M2006:
-		break;
 	case DJI_M3508:
 		motor->cmd = DJI_M3508_CURRENT_FLOAT_TO_INT(cmd);
 		break;
 	case DJI_GM6020:
-		motor->cmd = DJI_GM6020_VOLTAGE_FLOAT_TO_INT(cmd);
+		motor->cmd = DJI_GM6020_CURRENT_FLOAT_TO_INT(cmd);
+		break;
+	case DJI_M2006:
+		break; /* unused */
 	}
 }
 

@@ -100,7 +100,7 @@ void usart5_callback(uint8_t *rx_buff, uint16_t len)
 
 void task()
 {
-	chassis_task();
+	// chassis_task();
 	motor_set_command();
 }
 
@@ -146,6 +146,8 @@ void device_init()
 {
 	buzzer_register(tim12);
 	ws2812_register(spi6);
+	motor_init();
+	vofa_init();
 }
 /* USER CODE END 0 */
 
@@ -206,10 +208,8 @@ int main(void)
 	/* USER CODE BEGIN 2 */
 	bsp_init();
 	device_init();
-	vofa_init();
-
-	motor_init();
 	can_start();
+
 	LOG_DEBUG("========================================");	 /* for yellow color */
 	LOG_ERROR("FUCKING ROBOMASTER STM32 RTT Terminal Test"); /* for red color */
 	LOG_DEBUG("========================================");	 /* for yellow color */
