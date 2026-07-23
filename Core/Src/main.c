@@ -32,6 +32,7 @@
 
 #include "bsp_dwt.h"
 #include "bsp_fdcan.h"
+#include "bsp_gpio.h"
 #include "bsp_spi.h"
 #include "bsp_usart.h"
 
@@ -69,6 +70,7 @@
 struct spi_inst *spi6 = NULL;
 struct tim_inst *tim5 = NULL;
 struct tim_inst *tim12 = NULL;
+struct gpio_inst *pc15 = NULL;
 struct usart_inst *usart5 = NULL;
 const struct sbus_data *sbus = NULL;
 
@@ -101,6 +103,7 @@ void usart5_callback(uint8_t *rx_buff, uint16_t len)
 void task()
 {
 	// chassis_task();
+	motor_debug();
 	motor_set_command();
 }
 
@@ -140,6 +143,14 @@ void bsp_init()
 	    .callback = usart5_callback,
 	};
 	usart5 = usart_register(&usart5_config);
+
+	/* gpio config */
+	struct gpio_config pc15_config = {
+	    .port = GPIOC,
+	    .pin = GPIO_PIN_15,
+	    .pin_init_state = GPIO_PIN_SET,
+	};
+	pc15 = gpio_register(&pc15_config);
 }
 
 void device_init()
@@ -233,6 +244,11 @@ int main(void)
 		// dwt_delay_ms(10);
 		// vofa_send(target, actual, 0.0f);
 		sbus = sbus_get_data();
+		if (sbus->sw1 == SBUS_SW_DOWN) {
+			gpio_set(pc15);
+		} else if (sbus->sw1 == SBUS_SW_UP) {
+			gpio_reset(pc15);
+		}
 		dwt_delay_ms(1);
 	}
 	/* USER CODE END 3 */
