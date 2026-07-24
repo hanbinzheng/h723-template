@@ -1,7 +1,9 @@
 #include "motor.h"
+#include "bsp_dwt.h"
 #include "bsp_fdcan.h"
 #include "pid.h"
 #include "sbus.h"
+#include "td.h"
 #include "vofa.h"
 
 #ifndef PI
@@ -15,7 +17,8 @@
 #define DJI_POS_TO_RADS(value) ((float)(value) * 0.0007669903939428206f) /* 2 * PI / RANGE */
 
 /* GM6020 */
-/* current: -16384 ~ 16384 <-> -3 ~ 3 */
+/* current: -16384 ~ 16384 <-> -3 ~ 3, voltage: -2500 ~ 2500 <-> -24 ~ 24 */
+#define DJI_GM6020_VOLTAGE_FLOAT_TO_INT(value) ((int16_t)((value) * 1041.66667f))  /* 25000 / 24 */
 #define DJI_GM6020_CURRENT_FLOAT_TO_INT(value) ((int16_t)((value) * 5461.333333f)) /* 16384 / 3 */
 #define DJI_GM6020_CURRENT_INT_TO_FLOAT(value) ((float)(value) * 0.0001831054687f) /* 3 / 16384 */
 
@@ -36,6 +39,10 @@ struct dji_motor_inst {
 	float pos;	/* -PI ~ PI */
 	float vel;
 	float eff;
+
+	/* td method */
+	struct td_estimator td;
+	float vel_td;
 
 	struct pid_info pid_v2e; /* velocity to effort (current or voltage) */
 	struct pid_info pid_p2v; /* position to veolcity */
@@ -70,22 +77,132 @@ static struct can_tx_inst *can_2 = NULL;
 
 struct dji_motor_inst gm6020_1 = {
     .type = DJI_GM6020,
-    .offset = 3475,
+    .offset = 3331,
+    .pid_v2e =
+	{
+	    .kp = 0.9f,
+	    .ki = 0.09f,
+	    .kd = 0.0f,
+	    .i_limit = 1.1f,
+	    .k_b = 0.5f,
+	    .k_j = 0.0f,
+	    .out_limit = 24.0f,
+	},
+    .pid_p2v =
+	{
+	    .kp = 17.5f,
+	    .ki = 0.0f,
+	    .kd = 100.0f,
+	    .i_limit = 0.0f,
+	    .out_limit = 30.0f,
+	},
+    .td =
+	{
+	    .x_est = 0.0f,
+	    .v_est = 0.0f,
+	    .dt = 0.001f,
+	    .r = 1000.0f,
+	    .h = 0.004f,
+	    .initialized = false,
+	},
 };
 
 struct dji_motor_inst gm6020_2 = {
     .type = DJI_GM6020,
-    .offset = 3395,
+    .offset = 3517,
+    .pid_v2e =
+	{
+	    .kp = 0.9f,
+	    .ki = 0.1f,
+	    .kd = 0.0f,
+	    .i_limit = 1.1f,
+	    .k_b = 0.55f,
+	    .k_j = 0.0f,
+	    .out_limit = 24.0f,
+
+	},
+    .pid_p2v =
+	{
+	    .kp = 22.5f,
+	    .ki = 0.0f,
+	    .kd = 150.0f,
+	    .i_limit = 0.0f,
+	    .out_limit = 30.0f,
+	},
+    .td =
+	{
+	    .x_est = 0.0f,
+	    .v_est = 0.0f,
+	    .dt = 0.001f,
+	    .r = 1000.0f,
+	    .h = 0.004f,
+	    .initialized = false,
+	},
 };
 
 struct dji_motor_inst gm6020_3 = {
     .type = DJI_GM6020,
-    .offset = 6825,
+    .offset = 6978,
+    .pid_v2e =
+	{
+	    .kp = 0.95f,
+	    .ki = 0.08f,
+	    .kd = 0.0f,
+	    .i_limit = 1.1f,
+	    .k_b = 0.55f,
+	    .k_j = 0.0f,
+	    .out_limit = 24.0f,
+	},
+    .pid_p2v =
+	{
+	    .kp = 22.5f,
+	    .ki = 0.0f,
+	    .kd = 100.0f,
+	    .i_limit = 0.0f,
+	    .out_limit = 30.0f,
+	},
+    .td =
+	{
+	    .x_est = 0.0f,
+	    .v_est = 0.0f,
+	    .dt = 0.001f,
+	    .r = 1000.0f,
+	    .h = 0.004f,
+	    .initialized = false,
+	},
+
 };
 
 struct dji_motor_inst gm6020_4 = {
     .type = DJI_GM6020,
-    .offset = 5975,
+    .offset = 2780,
+    .pid_v2e =
+	{
+	    .kp = 1.1f,
+	    .ki = 0.08f,
+	    .kd = 0.0f,
+	    .i_limit = 1.2f,
+	    .k_b = 0.55f,
+	    .k_j = 0.0f,
+	    .out_limit = 24.0f,
+	},
+    .pid_p2v =
+	{
+	    .kp = 22.5f,
+	    .ki = 0.0f,
+	    .kd = 150.0f,
+	    .i_limit = 0.0f,
+	    .out_limit = 30.0f,
+	},
+    .td =
+	{
+	    .x_est = 0.0f,
+	    .v_est = 0.0f,
+	    .dt = 0.001f,
+	    .r = 1000.0f,
+	    .h = 0.004f,
+	    .initialized = false,
+	},
 };
 
 struct dji_motor_inst m3508_5 = {
@@ -108,7 +225,7 @@ struct dji_motor_inst m3508_8 = {
     .pid_v2e = {.kp = 0.05f, .ki = 0.0001f, .kd = 0.0f, .i_limit = 0.5f, .out_limit = 20.0f},
 };
 
-struct dji_motor_inst *motor = NULL;
+struct dji_motor_inst *motor = &gm6020_1;
 
 void motor_init()
 {
@@ -208,7 +325,7 @@ void motor_init()
 	};
 	struct can_tx_config can_config_2 = {
 	    .hfdcan = &hfdcan2,
-	    .id = 0x1FE,
+	    .id = 0x1FF,
 	    .type = CAN_STANDARD,
 	};
 	can_1 = can_register_tx(&can_config_1);
@@ -217,17 +334,18 @@ void motor_init()
 
 void m3508_set_vel(float front_left, float back_left, float back_right, float front_right)
 {
-	return;
-}
-
-void gm6020_set_vel(float front_left, float back_left, float back_right, float front_right)
-{
-	return;
+	set_single_vel(&m3508_7, front_left * DJI_M3508_REDUCTION_RATE);
+	set_single_vel(&m3508_8, back_left * DJI_M3508_REDUCTION_RATE);
+	set_single_vel(&m3508_5, back_right * DJI_M3508_REDUCTION_RATE);
+	set_single_vel(&m3508_6, front_right * DJI_M3508_REDUCTION_RATE);
 }
 
 void gm6020_set_pos(float front_left, float back_left, float back_right, float front_right)
 {
-	return;
+	set_single_pos(&gm6020_4, front_left);
+	set_single_pos(&gm6020_3, back_left);
+	set_single_pos(&gm6020_2, back_right);
+	set_single_pos(&gm6020_1, front_right);
 }
 
 void motor_set_command()
@@ -236,19 +354,19 @@ void motor_set_command()
 
 	buff1[0] = (m3508_5.cmd >> 8) & 0xFF;
 	buff1[1] = m3508_5.cmd & 0xFF;
-	buff2[2] = (m3508_6.cmd >> 8) & 0xFF;
-	buff2[3] = m3508_6.cmd & 0xFF;
-	buff2[4] = (m3508_7.cmd >> 8) & 0xFF;
-	buff2[5] = m3508_7.cmd & 0xFF;
+	buff1[2] = (m3508_6.cmd >> 8) & 0xFF;
+	buff1[3] = m3508_6.cmd & 0xFF;
+	buff1[4] = (m3508_7.cmd >> 8) & 0xFF;
+	buff1[5] = m3508_7.cmd & 0xFF;
 	buff1[6] = (m3508_8.cmd >> 8) & 0xFF;
 	buff1[7] = m3508_8.cmd & 0xFF;
 
 	buff2[0] = (gm6020_1.cmd >> 8) & 0xFF;
 	buff2[1] = gm6020_1.cmd & 0xFF;
-	buff1[2] = (gm6020_2.cmd >> 8) & 0xFF;
-	buff1[3] = gm6020_2.cmd & 0xFF;
-	buff1[4] = (gm6020_3.cmd >> 8) & 0xFF;
-	buff1[5] = gm6020_3.cmd & 0xFF;
+	buff2[2] = (gm6020_2.cmd >> 8) & 0xFF;
+	buff2[3] = gm6020_2.cmd & 0xFF;
+	buff2[4] = (gm6020_3.cmd >> 8) & 0xFF;
+	buff2[5] = gm6020_3.cmd & 0xFF;
 	buff2[6] = (gm6020_4.cmd >> 8) & 0xFF;
 	buff2[7] = gm6020_4.cmd & 0xFF;
 
@@ -281,6 +399,7 @@ static void motor_callback(struct can_rx_inst *can_inst, uint8_t *buff)
 			switch (motor->type) {
 			case DJI_GM6020:
 				motor->eff = DJI_GM6020_CURRENT_INT_TO_FLOAT(motor->raw_eff);
+				motor->vel_td = td_update(&(motor->td), motor->pos);
 				break;
 			case DJI_M3508:
 				motor->eff = DJI_M3508_CURRENT_INT_TO_FLOAT(motor->raw_eff);
@@ -294,13 +413,15 @@ static void motor_callback(struct can_rx_inst *can_inst, uint8_t *buff)
 
 static void set_single_vel(struct dji_motor_inst *motor, float ref)
 {
-	float cmd = pid_calculate(&(motor->pid_v2e), ref, motor->vel);
+	float cmd;
 	switch (motor->type) {
 	case DJI_M3508:
+		cmd = pid_calculate(&(motor->pid_v2e), ref, motor->vel);
 		motor->cmd = DJI_M3508_CURRENT_FLOAT_TO_INT(cmd);
 		break;
 	case DJI_GM6020:
-		motor->cmd = DJI_GM6020_CURRENT_FLOAT_TO_INT(cmd);
+		cmd = pid_calculate(&(motor->pid_v2e), ref, motor->vel_td);
+		motor->cmd = DJI_GM6020_VOLTAGE_FLOAT_TO_INT(cmd);
 		break;
 	case DJI_M2006:
 		break; /* unused */
