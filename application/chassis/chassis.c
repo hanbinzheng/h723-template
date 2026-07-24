@@ -7,12 +7,10 @@
 
 #define EPSILON 0.002f
 
-#ifndef PI
-#define PI 3.141592653589793f
-#endif
-#ifndef HALF_PI
-#define HALF_PI 1.5707963267948966f
-#endif
+#define GM6020_1_POS (5546 - 3331) * 0.0007669903939428206f
+#define GM6020_2_POS (1555 - 3517) * 0.0007669903939428206f
+#define GM6020_3_POS (711 - 6978 + 8192) * 0.0007669903939428206f
+#define GM6020_4_POS (725 - 2780) * 0.0007669903939428206f
 
 static enum sbus_sw state = SBUS_SW_UP; /* default */
 static float scale = 0;
@@ -54,7 +52,7 @@ void chassis_task(void)
 		gm6020_set_pos(0, 0, 0, 0);
 		m3508_set_vel(-w, -w, w, w);
 	} else if (state == SBUS_SW_DOWN) {
-		gm6020_set_pos(-HALF_PI, HALF_PI, -HALF_PI, HALF_PI);
+		gm6020_set_pos(GM6020_4_POS, GM6020_3_POS, GM6020_2_POS, GM6020_1_POS);
 		m3508_set_vel(w, -w, -w, w);
 	}
 }
