@@ -1,3 +1,6 @@
 [submodule "bsp/rtt/SEGGER_RTT"]
 	path = bsp/rtt/SEGGER_RTT
 	url = https://github.com/SEGGERMicro/RTT.git
+[submodule "RUST_CLEAN_STM32F103"]
+	path = RUST_CLEAN_STM32F103
+	url = https://github.com/hanbinzheng/RUST_CLEAN_STM32F103C6T6.git
