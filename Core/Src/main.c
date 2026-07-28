@@ -155,7 +155,7 @@ void bsp_init()
 	struct gpio_config gpio_pc15_config = {
 	    .port = GPIOC,
 	    .pin = GPIO_PIN_15,
-	    .pin_init_state = GPIO_PIN_SET,
+	    .pin_init_state = GPIO_PIN_RESET,
 	};
 	gpio_pc15 = gpio_register(&gpio_pc15_config);
 }
@@ -252,7 +252,7 @@ int main(void)
 		// dwt_delay_ms(10);
 		// vofa_send(target, actual, 0.0f);
 		dwt_delay_ms(10);
-		HAL_IWDG_Refresh(&hiwdg1); /* feed the dog */
+		// HAL_IWDG_Refresh(&hiwdg1); /* feed the dog */
 		sbus = sbus_get_data();
 	}
 	/* USER CODE END 3 */
