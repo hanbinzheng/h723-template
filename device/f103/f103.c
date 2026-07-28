@@ -1,9 +1,11 @@
 #include "f103.h"
+#include "bsp_dwt.h"
 #include <string.h>
 
 struct usart_inst *usart10 = NULL;
-uint16_t f103_initialized = 0;
+uint32_t f103_active = 0;
 uint8_t f103_data[20];
+float last_rx_ms;
 
 static void callback(uint8_t *buff, uint16_t len)
 {
@@ -13,7 +15,8 @@ static void callback(uint8_t *buff, uint16_t len)
 
 	if (len == 4) {
 		if (buff[0] == 0xFF && buff[1] == 0xFF && buff[2] == 0x00 && buff[3] == 0x00) {
-			f103_initialized = 1;
+			last_rx_ms = dwt_get_timeline_ms();
+			f103_active = 1;
 		}
 	} else {
 		memcpy(f103_data, buff, len);
@@ -33,7 +36,12 @@ void f103_init(void)
 
 HAL_StatusTypeDef f103_send(enum linear_actuator_state linear_actuator_cmd, enum esc_state esc_cmd)
 {
-	if (f103_initialized) {
+	float time_ms = dwt_get_timeline_ms();
+	if (time_ms - last_rx_ms >= 1000.0f) { /* silence for 1s */
+		f103_active = 0;	       /* set inactive */
+	}
+
+	if (f103_active) {
 		uint8_t buff[2] = {(uint8_t)linear_actuator_cmd, esc_cmd};
 		return usart_transmit(usart10, buff, 2);
 	} else {
