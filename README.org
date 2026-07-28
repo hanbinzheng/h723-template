@@ -1,0 +1,14 @@
+#+begin_src bash
+# clone the repository with the rust/clean branch
+git clone --branch rust/clean --recurse-submodules https://github.com/hanbinzheng/h723-template.git
+#+end_src
+
+#+begin_src bash
+# change into the repository directory
+cd h723-template
+#+end_src
+
+#+begin_src bash
+# ensure all submodules are initialized and updated recursively
+git submodule update --init --recursive
+#+end_src
