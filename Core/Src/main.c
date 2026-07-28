@@ -38,8 +38,6 @@
 
 #include "buzzer.h"
 #include "dbus.h"
-#include "f103.h"
-#include "linear_actuator.h"
 #include "motor.h"
 #include "sbus.h"
 #include "ws2812.h"
@@ -104,7 +102,6 @@ void usart5_callback(uint8_t *rx_buff, uint16_t len)
 
 void task()
 {
-	f103_task();
 	chassis_task();
 	motor_set_command();
 }
@@ -159,8 +156,6 @@ void device_init()
 {
 	buzzer_register(tim12);
 	ws2812_register(spi6);
-	// linear_actuator_init();
-	f103_init();
 	motor_init();
 	vofa_init();
 }
