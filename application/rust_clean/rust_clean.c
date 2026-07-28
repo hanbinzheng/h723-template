@@ -5,7 +5,7 @@
 static enum esc_state esc = ESC_STOP;
 static enum linear_actuator_state linear_actuator = LINEAR_ACTUATOR_STOP;
 
-HAL_StatusTypeDef debug_rust_clean = HAL_BUSY;
+HAL_StatusTypeDef debug_rust_clean = 50;
 
 void rust_clean_task(void)
 {
