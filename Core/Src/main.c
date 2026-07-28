@@ -38,6 +38,8 @@
 
 #include "buzzer.h"
 #include "dbus.h"
+#include "f103.h"
+#include "linear_actuator.h"
 #include "motor.h"
 #include "sbus.h"
 #include "ws2812.h"
@@ -71,6 +73,7 @@ struct spi_inst *spi6 = NULL;
 struct tim_inst *tim5 = NULL;
 struct tim_inst *tim12 = NULL;
 struct usart_inst *usart5 = NULL;
+struct gpio_inst *gpio_pc15 = NULL;
 const struct sbus_data *sbus = NULL;
 
 /* USER CODE END PV */
@@ -101,6 +104,7 @@ void usart5_callback(uint8_t *rx_buff, uint16_t len)
 
 void task()
 {
+	f103_task();
 	chassis_task();
 	motor_set_command();
 }
@@ -141,12 +145,22 @@ void bsp_init()
 	    .callback = usart5_callback,
 	};
 	usart5 = usart_register(&usart5_config);
+
+	/* gpio config */
+	struct gpio_config gpio_pc15_config = {
+	    .port = GPIOC,
+	    .pin = GPIO_PIN_15,
+	    .pin_init_state = GPIO_PIN_SET,
+	};
+	gpio_pc15 = gpio_register(&gpio_pc15_config);
 }
 
 void device_init()
 {
 	buzzer_register(tim12);
 	ws2812_register(spi6);
+	// linear_actuator_init();
+	f103_init();
 	motor_init();
 	vofa_init();
 }
@@ -206,7 +220,6 @@ int main(void)
 	MX_FDCAN3_Init();
 	MX_TIM5_Init();
 	MX_IWDG1_Init();
-	MX_TIM2_Init();
 	/* USER CODE BEGIN 2 */
 	bsp_init();
 	device_init();
@@ -234,8 +247,9 @@ int main(void)
 		// time_ticks += 0.05f;
 		// dwt_delay_ms(10);
 		// vofa_send(target, actual, 0.0f);
+		dwt_delay_ms(10);
+		HAL_IWDG_Refresh(&hiwdg1); /* feed the dog */
 		sbus = sbus_get_data();
-		dwt_delay_ms(1);
 	}
 	/* USER CODE END 3 */
 }
