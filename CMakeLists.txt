@@ -53,6 +53,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     algorithm/td/td.c
 
     application/chassis/chassis.c
+    application/rust_clean/rust_clean.c
 
     bsp/dwt/bsp_dwt.c
     bsp/fdcan/bsp_fdcan.c
@@ -84,6 +85,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     algorithm/td
 
     application/chassis
+    application/rust_clean
 
     bsp/dwt
     bsp/fdcan

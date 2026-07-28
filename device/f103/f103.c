@@ -22,10 +22,8 @@ void f103_init(void)
 	usart10 = usart_register(&config);
 }
 
-HAL_StatusTypeDef f103_send(uint8_t *buff, uint16_t len)
+HAL_StatusTypeDef f103_send(enum linear_actuator_state linear_actuator_cmd, enum esc_state esc_cmd)
 {
-	if (buff != NULL && len > 0) {
-		return usart_transmit(usart10, buff, len);
-	}
-	return HAL_ERROR;
+	uint8_t buff[2] = {(uint8_t)linear_actuator_cmd, esc_cmd};
+	return usart_transmit(usart10, buff, 2);
 }

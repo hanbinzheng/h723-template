@@ -29,6 +29,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "chassis.h"
+#include "rust_clean.h"
 
 #include "bsp_dwt.h"
 #include "bsp_fdcan.h"
@@ -101,10 +102,16 @@ void usart5_callback(uint8_t *rx_buff, uint16_t len)
 	}
 }
 
-void task()
+void task() /* 1000hz task */
 {
-	chassis_task();
-	motor_set_command();
+	static uint64_t cnt = 0; /* counter */
+
+	chassis_task();	     /* 1000 hz */
+	motor_set_command(); /* 1000 hz */
+
+	if (cnt++ % 10 == 0) {
+		rust_clean_task(); /* 1000 hz */
+	}
 }
 
 void bsp_init()
