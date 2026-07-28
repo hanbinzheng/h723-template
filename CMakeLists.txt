@@ -65,6 +65,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
 
     device/buzzer/buzzer.c
     device/dbus/dbus.c
+    device/f103/f103.c
     device/sbus/sbus.c
     device/motor/motor.c
     device/ws2812/ws2812.c
@@ -95,6 +96,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
 
     device/buzzer
     device/dbus
+    device/f103
     device/motor
     device/sbus
     device/ws2812

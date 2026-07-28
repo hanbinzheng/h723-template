@@ -38,6 +38,7 @@
 
 #include "buzzer.h"
 #include "dbus.h"
+#include "f103.h"
 #include "motor.h"
 #include "sbus.h"
 #include "ws2812.h"
@@ -156,6 +157,7 @@ void device_init()
 {
 	buzzer_register(tim12);
 	ws2812_register(spi6);
+	f103_init();
 	motor_init();
 	vofa_init();
 }
